@@ -29,6 +29,9 @@ interface MenuItemDraft {
   id?: number;
   category_jp: string;
   category_en: string;
+  discount_percentage: string;
+  discount_start_time: string;
+  discount_end_time: string;
   /** Photos already on the server */
   savedPhotos: { id: number; url: string; label?: string }[];
   /** Files staged for upload on save */
@@ -42,6 +45,9 @@ function emptyItem(): MenuItemDraft {
   return {
     category_jp: "",
     category_en: "",
+    discount_percentage: "",
+    discount_start_time: "",
+    discount_end_time: "",
     savedPhotos: [],
     pendingFiles: [],
     pendingLabels: [],
@@ -194,6 +200,50 @@ function MenuItemCard({
             </div>
           </div>
 
+          {/* Discount */}
+          <div className="space-y-2">
+            <Label className="text-xs text-gray-500 block">
+              割引 / Discount{" "}
+              <span className="text-gray-400">(任意)</span>
+            </Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-[11px] text-gray-400 mb-1 block">割引率 (%)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  placeholder="10.00"
+                  value={item.discount_percentage}
+                  onChange={(e) => onUpdate({ discount_percentage: e.target.value })}
+                  disabled={disabled}
+                  className="text-sm h-9"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px] text-gray-400 mb-1 block">開始日時</Label>
+                <Input
+                  type="datetime-local"
+                  value={item.discount_start_time}
+                  onChange={(e) => onUpdate({ discount_start_time: e.target.value })}
+                  disabled={disabled}
+                  className="text-sm h-9"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px] text-gray-400 mb-1 block">終了日時</Label>
+                <Input
+                  type="datetime-local"
+                  value={item.discount_end_time}
+                  onChange={(e) => onUpdate({ discount_end_time: e.target.value })}
+                  disabled={disabled}
+                  className="text-sm h-9"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Photos */}
           <div>
             <Label className="text-xs text-gray-500 mb-2 block">
@@ -293,6 +343,13 @@ export function Step4Form({
               id: item.id,
               category_jp: item.category_jp ?? "",
               category_en: item.category_en ?? "",
+              discount_percentage: item.discount_percentage ?? "",
+              discount_start_time: item.discount_start_time
+                ? new Date(item.discount_start_time).toISOString().slice(0, 16)
+                : "",
+              discount_end_time: item.discount_end_time
+                ? new Date(item.discount_end_time).toISOString().slice(0, 16)
+                : "",
               savedPhotos: (item.photos ?? []).map((p) => ({
                 id: p.id,
                 url: p.image_url || p.image,
@@ -367,6 +424,9 @@ export function Step4Form({
           fd.append("business", String(business.id));
           if (item.category_jp) fd.append("category_jp", item.category_jp);
           if (item.category_en) fd.append("category_en", item.category_en);
+          if (item.discount_percentage) fd.append("discount_percentage", item.discount_percentage);
+          if (item.discount_start_time) fd.append("discount_start_time", item.discount_start_time);
+          if (item.discount_end_time) fd.append("discount_end_time", item.discount_end_time);
           item.pendingFiles.forEach((file, pidx) => {
             fd.append("photo_images", file);
             fd.append("photo_labels", item.pendingLabels[pidx] ?? "");
@@ -388,6 +448,9 @@ export function Step4Form({
           await api.updateMenuItem(item.id, {
             category_jp: item.category_jp || undefined,
             category_en: item.category_en || undefined,
+            discount_percentage: item.discount_percentage || null,
+            discount_start_time: item.discount_start_time || null,
+            discount_end_time: item.discount_end_time || null,
           });
 
           for (let pidx = 0; pidx < item.pendingFiles.length; pidx++) {

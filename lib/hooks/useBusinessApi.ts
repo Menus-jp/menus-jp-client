@@ -21,11 +21,9 @@ export function useBusinessApi() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ── helpers ────────────────────────────────────────────────────────────────
   const extractError = (err: any, fallback: string) =>
     err.response?.data?.message || err.response?.data?.detail || fallback;
 
-  // ── Business Profile ────────────────────────────────────────────────────────
   const listBusinesses = useCallback(async () => {
     try {
       setLoading(true);
