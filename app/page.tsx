@@ -1,16 +1,70 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Search, Settings, Share2, Smartphone, Globe, ZapIcon, Clock, Crown, CheckCircle, CalendarDays } from "lucide-react";
+import { useAuth } from "@/lib/hooks/useAuth";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Search, Settings, Share2, Smartphone, Globe, ZapIcon, Clock, Crown, CheckCircle, CalendarDays, LogOut } from "lucide-react";
 
 export default function Home() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  const handleStartFree = () => {
+    if (user) {
+      router.push('/manage');
+    } else {
+      router.push('/register');
+    }
+  };
+
   return (
     <main className="w-full bg-white">
       <nav className="fixed top-0 w-full bg-black z-50">
         <div className="px-4 sm:px-8 py-4 sm:py-5 flex justify-between items-center">
-          <div className="text-2xl sm:text-3xl font-bold text-white">menus.jp</div>
-          <div className="flex flex-col items-end text-white cursor-pointer hover:text-gray-300 transition">
-            <span className="text-xs font-bold sm:text-sm">ログイン/ Login</span>
+          <div className="text-2xl sm:text-3xl font-bold text-white cursor-pointer" onClick={() => router.push('/')}>
+            menus.jp
+          </div>
+          <div className="flex items-center gap-4">
+            {user ? (
+              <>
+                <div className="text-white text-sm hidden sm:block">
+                  {user.first_name || user.username}
+                </div>
+                <Button
+                  variant="ghost"
+                  className="text-white hover:text-gray-300"
+                  onClick={() => router.push('/dashboard')}
+                >
+                  Dashboard
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="text-white hover:text-gray-300 flex items-center gap-2"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link href="/login">
+                  <Button variant="ghost" className="text-white hover:text-gray-300">
+                    <span className="text-xs font-bold sm:text-sm">ログイン</span>
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button variant="ghost" className="text-white hover:text-gray-300">
+                    <span className="text-xs font-bold sm:text-sm">Login</span>
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </nav>
@@ -35,7 +89,10 @@ export default function Home() {
             Your business. One link. Done.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button className="bg-[#15803D] hover:bg-[#166534] text-white font-bold h-16 sm:h-20 px-8 sm:px-12 rounded-3xl text-base sm:text-lg">
+            <Button 
+              onClick={handleStartFree}
+              className="bg-[#15803D] hover:bg-[#166534] text-white font-bold h-16 sm:h-20 px-8 sm:px-12 rounded-3xl text-base sm:text-lg"
+            >
               <div className="flex flex-col items-center leading-tight">
                 <span className="font-bold">無料で始める</span>
                 <span className="text-xs sm:text-sm font-semibold">Start Free</span>
