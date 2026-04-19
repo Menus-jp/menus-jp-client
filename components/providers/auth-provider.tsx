@@ -1,25 +1,37 @@
-'use client';
+"use client";
 
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
-import { authApi } from '@/lib/api/auth';
-import { AuthContextType, LoginResponse, RegisterResponse, User } from '@/lib/types/auth';
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import axios from "axios";
+import { authApi } from "@/lib/api/auth";
+import {
+  AuthContextType,
+  LoginResponse,
+  RegisterResponse,
+  User,
+} from "@/lib/types/auth";
 
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined,
+);
 
 /** Persists token, user and sessionId to localStorage in one synchronous pass. */
 function storeAuthData(token: string, user: User, sessionId: string): void {
-  localStorage.setItem('token', token);
-  localStorage.setItem('user', JSON.stringify(user));
-  localStorage.setItem('sessionId', sessionId);
+  localStorage.setItem("token", token);
+  localStorage.setItem("user", JSON.stringify(user));
+  localStorage.setItem("sessionId", sessionId);
 }
 
 /** Removes all auth keys from localStorage in one synchronous pass. */
 function clearAuthData(): void {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  localStorage.removeItem('sessionId');
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  localStorage.removeItem("sessionId");
 }
 
 /**
@@ -33,48 +45,54 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   }
 
   const status = err.response?.status;
-  const data   = err.response?.data as Record<string, unknown> | undefined;
+  const data = err.response?.data as Record<string, unknown> | undefined;
 
   const apiMessage =
-    (typeof data?.message  === 'string' && data.message)  ||
-    (typeof data?.detail   === 'string' && data.detail)   ||
-    (typeof data?.error    === 'string' && data.error)     ||
+    (typeof data?.message === "string" && data.message) ||
+    (typeof data?.detail === "string" && data.detail) ||
+    (typeof data?.error === "string" && data.error) ||
     null;
 
   if (apiMessage) return apiMessage;
 
   if (!err.response) {
     return navigator.onLine
-      ? 'サーバーに接続できませんでした。しばらくしてから再試行してください。'
-      : 'インターネット接続を確認してください。';
+      ? "サーバーに接続できませんでした。しばらくしてから再試行してください。"
+      : "インターネット接続を確認してください。";
   }
 
   switch (status) {
-    case 400: return '入力内容に誤りがあります。確認してください。';
-    case 401: return 'セッションが無効です。再度ログインしてください。';
-    case 403: return 'この操作は許可されていません。';
-    case 404: return 'リソースが見つかりませんでした。';
-    case 429: return 'リクエストが多すぎます。しばらくしてから再試行してください。';
+    case 400:
+      return "入力内容に誤りがあります。確認してください。";
+    case 401:
+      return "セッションが無効です。再度ログインしてください。";
+    case 403:
+      return "この操作は許可されていません。";
+    case 404:
+      return "リソースが見つかりませんでした。";
+    case 429:
+      return "リクエストが多すぎます。しばらくしてから再試行してください。";
     default:
-      if (status && status >= 500) return 'サーバーエラーが発生しました。しばらくしてから再試行してください。';
+      if (status && status >= 500)
+        return "サーバーエラーが発生しました。しばらくしてから再試行してください。";
       return fallback;
   }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user,      setUser]      = useState<User | null>(null);
-  const [token,     setToken]     = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // ── Restore session from localStorage (runs once on mount, client-only) ──
   useEffect(() => {
-    const storedToken     = localStorage.getItem('token');
-    const storedUserRaw   = localStorage.getItem('user');
-    const storedSessionId = localStorage.getItem('sessionId');
+    const storedToken = localStorage.getItem("token");
+    const storedUserRaw = localStorage.getItem("user");
+    const storedSessionId = localStorage.getItem("sessionId");
 
-    if (storedToken)     setToken(storedToken);
+    if (storedToken) setToken(storedToken);
     if (storedSessionId) setSessionId(storedSessionId);
 
     if (storedUserRaw) {
@@ -96,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(response.user);
       setSessionId(response.session_id);
     },
-    []
+    [],
   );
 
   const login = useCallback(
@@ -107,14 +125,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const response = await authApi.login(idToken, accessToken, redirectUrl);
         applyAuthResponse(response);
       } catch (err) {
-        const message = extractErrorMessage(err, 'ログインに失敗しました');
+        const message = extractErrorMessage(err, "ログインに失敗しました");
         setError(message);
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    [applyAuthResponse]
+    [applyAuthResponse],
   );
 
   const register = useCallback(
@@ -126,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         last_name?: string;
         phone_number?: string;
         access_token?: string;
-      }
+      },
     ) => {
       setError(null);
       setLoading(true);
@@ -138,18 +156,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           userData?.last_name,
           userData?.phone_number,
           userData?.access_token,
-          'web'
+          "web",
         );
         applyAuthResponse(response);
       } catch (err) {
-        const message = extractErrorMessage(err, '登録に失敗しました');
+        const message = extractErrorMessage(err, "登録に失敗しました");
         setError(message);
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    [applyAuthResponse]
+    [applyAuthResponse],
   );
 
   const logout = useCallback(() => {
@@ -176,7 +194,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       clearError,
     }),
-    [user, token, sessionId, loading, error, login, register, logout, clearError]
+    [
+      user,
+      token,
+      sessionId,
+      loading,
+      error,
+      login,
+      register,
+      logout,
+      clearError,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

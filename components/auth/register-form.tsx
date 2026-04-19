@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { GoogleLogin } from '@react-oauth/google';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import Link from 'next/link';
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { GoogleLogin } from "@react-oauth/google";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import Link from "next/link";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -17,14 +17,14 @@ export function RegisterForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [idToken, setIdToken] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    phoneNumber: '',
+    firstName: "",
+    lastName: "",
+    phoneNumber: "",
   });
 
   const handleLoginSuccess = async (credentialResponse: any) => {
     if (!credentialResponse.credential) {
-      console.error('No credential in response');
+      console.error("No credential in response");
       return;
     }
 
@@ -35,7 +35,7 @@ export function RegisterForm() {
     e.preventDefault();
 
     if (!idToken) {
-      alert('Please sign in with Google first');
+      alert("Please sign in with Google first");
       return;
     }
 
@@ -48,16 +48,16 @@ export function RegisterForm() {
       });
 
       // Redirect to onboarding
-      router.push('/onboarding');
+      router.push("/onboarding");
     } catch (err) {
-      console.error('Registration failed:', err);
+      console.error("Registration failed:", err);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleLoginError = () => {
-    console.error('Google sign in failed');
+    console.error("Google sign in failed");
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,7 +79,9 @@ export function RegisterForm() {
 
       {!idToken ? (
         <div className="flex flex-col items-center space-y-4">
-          <p className="text-sm text-gray-600">Sign up with Google to get started</p>
+          <p className="text-sm text-gray-600">
+            Sign up with Google to get started
+          </p>
           <GoogleLogin
             onSuccess={handleLoginSuccess}
             onError={handleLoginError}
@@ -135,7 +137,7 @@ export function RegisterForm() {
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
-            {isSubmitting ? 'Creating Account...' : 'Create Account'}
+            {isSubmitting ? "Creating Account..." : "Create Account"}
           </Button>
 
           <Button
@@ -151,7 +153,10 @@ export function RegisterForm() {
 
       <div className="text-center text-sm">
         <span className="text-gray-600">Already have an account? </span>
-        <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700">
+        <Link
+          href="/login"
+          className="font-semibold text-blue-600 hover:text-blue-700"
+        >
           Sign in
         </Link>
       </div>

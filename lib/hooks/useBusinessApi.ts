@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useCallback } from 'react';
-import apiClient from '@/lib/api/auth';
+import { useState, useCallback } from "react";
+import apiClient from "@/lib/api/auth";
 import {
   BusinessProfile,
   BusinessHours,
@@ -15,7 +15,7 @@ import {
   SocialLink,
   ClosedDay,
   BusinessDetail,
-} from '@/lib/types/business';
+} from "@/lib/types/business";
 
 export function useBusinessApi() {
   const [loading, setLoading] = useState(false);
@@ -23,18 +23,16 @@ export function useBusinessApi() {
 
   // ── helpers ────────────────────────────────────────────────────────────────
   const extractError = (err: any, fallback: string) =>
-    err.response?.data?.message ||
-    err.response?.data?.detail ||
-    fallback;
+    err.response?.data?.message || err.response?.data?.detail || fallback;
 
   // ── Business Profile ────────────────────────────────────────────────────────
   const listBusinesses = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get('/businesses/');
+      const res = await apiClient.get("/businesses/");
       return res.data;
     } catch (err: any) {
-      setError(extractError(err, 'Failed to load businesses'));
+      setError(extractError(err, "Failed to load businesses"));
       throw err;
     } finally {
       setLoading(false);
@@ -47,7 +45,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/businesses/${id}/`);
       return res.data as BusinessDetail;
     } catch (err: any) {
-      setError(extractError(err, 'Failed to load business'));
+      setError(extractError(err, "Failed to load business"));
       throw err;
     } finally {
       setLoading(false);
@@ -58,16 +56,16 @@ export function useBusinessApi() {
     async (data: { business_name: string; category: string }) => {
       try {
         setLoading(true);
-        const res = await apiClient.post('/businesses/', data);
+        const res = await apiClient.post("/businesses/", data);
         return res.data as BusinessProfile;
       } catch (err: any) {
-        setError(extractError(err, 'Failed to create business'));
+        setError(extractError(err, "Failed to create business"));
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   const updateBusiness = useCallback(
@@ -77,13 +75,13 @@ export function useBusinessApi() {
         const res = await apiClient.patch(`/businesses/${id}/`, data);
         return res.data as BusinessProfile;
       } catch (err: any) {
-        setError(extractError(err, 'Failed to update business'));
+        setError(extractError(err, "Failed to update business"));
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   const publishBusiness = useCallback(async (id: number) => {
@@ -92,7 +90,7 @@ export function useBusinessApi() {
       const res = await apiClient.post(`/businesses/${id}/publish/`, {});
       return res.data;
     } catch (err: any) {
-      setError(extractError(err, 'Failed to publish business'));
+      setError(extractError(err, "Failed to publish business"));
       throw err;
     } finally {
       setLoading(false);
@@ -105,7 +103,7 @@ export function useBusinessApi() {
       const res = await apiClient.post(`/businesses/${id}/unpublish/`, {});
       return res.data;
     } catch (err: any) {
-      setError(extractError(err, 'Failed to unpublish business'));
+      setError(extractError(err, "Failed to unpublish business"));
       throw err;
     } finally {
       setLoading(false);
@@ -117,7 +115,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/businesses/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, 'Failed to delete business'));
+      setError(extractError(err, "Failed to delete business"));
       throw err;
     } finally {
       setLoading(false);
@@ -128,10 +126,12 @@ export function useBusinessApi() {
   const listBusinessHours = useCallback(async (businessId: number) => {
     try {
       setLoading(true);
-      const res = await apiClient.get(`/business-hours/?business=${businessId}`);
+      const res = await apiClient.get(
+        `/business-hours/?business=${businessId}`,
+      );
       return (res.data.results ?? res.data) as BusinessHours[];
     } catch (err: any) {
-      setError(extractError(err, 'Failed to load hours'));
+      setError(extractError(err, "Failed to load hours"));
       throw err;
     } finally {
       setLoading(false);
@@ -143,39 +143,42 @@ export function useBusinessApi() {
     async (businessId: number, hours: BulkHoursEntry[]) => {
       try {
         setLoading(true);
-        const res = await apiClient.post('/business-hours/bulk_create/', {
+        const res = await apiClient.post("/business-hours/bulk_create/", {
           business: businessId,
           hours,
         });
         return res.data;
       } catch (err: any) {
-        setError(extractError(err, 'Failed to save hours'));
+        setError(extractError(err, "Failed to save hours"));
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   /** PATCH /api/business-hours/bulk_update/ — each entry must include `id` */
   const bulkUpdateBusinessHours = useCallback(
-    async (businessId: number, hours: Array<Partial<BusinessHours> & { id: number }>) => {
+    async (
+      businessId: number,
+      hours: Array<Partial<BusinessHours> & { id: number }>,
+    ) => {
       try {
         setLoading(true);
-        const res = await apiClient.patch('/business-hours/bulk_update/', {
+        const res = await apiClient.patch("/business-hours/bulk_update/", {
           business: businessId,
           hours,
         });
         return res.data;
       } catch (err: any) {
-        setError(extractError(err, 'Failed to update hours'));
+        setError(extractError(err, "Failed to update hours"));
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   const deleteBusinessHours = useCallback(async (id: number) => {
@@ -183,7 +186,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/business-hours/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, 'Failed to delete hours'));
+      setError(extractError(err, "Failed to delete hours"));
       throw err;
     } finally {
       setLoading(false);
@@ -197,7 +200,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/closed-days/?business=${businessId}`);
       return (res.data.results ?? res.data) as ClosedDay[];
     } catch (err: any) {
-      setError(extractError(err, 'Failed to load closed days'));
+      setError(extractError(err, "Failed to load closed days"));
       throw err;
     } finally {
       setLoading(false);
@@ -205,22 +208,25 @@ export function useBusinessApi() {
   }, []);
 
   const bulkCreateClosedDays = useCallback(
-    async (businessId: number, closedDays: Array<{ day_of_week: string; reason?: string }>) => {
+    async (
+      businessId: number,
+      closedDays: Array<{ day_of_week: string; reason?: string }>,
+    ) => {
       try {
         setLoading(true);
-        const res = await apiClient.post('/closed-days/bulk_create/', {
+        const res = await apiClient.post("/closed-days/bulk_create/", {
           business: businessId,
           closed_days: closedDays,
         });
         return res.data;
       } catch (err: any) {
-        setError(extractError(err, 'Failed to create closed days'));
+        setError(extractError(err, "Failed to create closed days"));
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   const deleteClosedDay = useCallback(async (id: number) => {
@@ -230,7 +236,7 @@ export function useBusinessApi() {
     } catch (err: any) {
       // 404 means the record is already gone — treat as success
       if (err?.response?.status === 404) return;
-      setError(extractError(err, 'Failed to delete closed day'));
+      setError(extractError(err, "Failed to delete closed day"));
       throw err;
     } finally {
       setLoading(false);
@@ -244,7 +250,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/menu-items/?business=${businessId}`);
       return (res.data.results ?? res.data) as MenuItem[];
     } catch (err: any) {
-      setError(extractError(err, 'Failed to load menu items'));
+      setError(extractError(err, "Failed to load menu items"));
       throw err;
     } finally {
       setLoading(false);
@@ -256,49 +262,66 @@ export function useBusinessApi() {
    * category_jp / category_en are free-text strings.
    * photo_images[] and photo_labels[] are aligned by index.
    */
-  const createMenuItem = useCallback(
-    async (formData: FormData) => {
-      try {
-        setLoading(true);
-        const res = await apiClient.post('/menu-items/', formData, {
-          headers: { 'Content-Type': undefined },
-        });
-        return res.data as MenuItem;
-      } catch (err: any) {
-        setError(extractError(err, 'Failed to create menu item'));
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  const updateMenuItem = useCallback(async (id: number, data: { category_jp?: string; category_en?: string }) => {
+  const createMenuItem = useCallback(async (formData: FormData) => {
     try {
       setLoading(true);
-      // Send as FormData — the backend view uses QueryDict.getlist() which requires multipart
-      const fd = new FormData();
-      if (data.category_jp !== undefined) fd.append('category_jp', data.category_jp);
-      if (data.category_en !== undefined) fd.append('category_en', data.category_en);
-      const res = await apiClient.patch(`/menu-items/${id}/`, fd, {
-        headers: { 'Content-Type': undefined },
+      const res = await apiClient.post("/menu-items/", formData, {
+        headers: { "Content-Type": undefined },
       });
       return res.data as MenuItem;
     } catch (err: any) {
-      setError(extractError(err, 'Failed to update menu item'));
+      setError(extractError(err, "Failed to create menu item"));
       throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const updateMenuItem = useCallback(
+    async (
+      id: number,
+      data: {
+        category_jp?: string;
+        category_en?: string;
+        discount_percentage?: string | null;
+        discount_start_time?: string | null;
+        discount_end_time?: string | null;
+      },
+    ) => {
+      try {
+        setLoading(true);
+        // Send as FormData — the backend view uses QueryDict.getlist() which requires multipart
+        const fd = new FormData();
+        if (data.category_jp !== undefined)
+          fd.append("category_jp", data.category_jp ?? "");
+        if (data.category_en !== undefined)
+          fd.append("category_en", data.category_en ?? "");
+        if (data.discount_percentage !== undefined)
+          fd.append("discount_percentage", data.discount_percentage ?? "");
+        if (data.discount_start_time !== undefined)
+          fd.append("discount_start_time", data.discount_start_time ?? "");
+        if (data.discount_end_time !== undefined)
+          fd.append("discount_end_time", data.discount_end_time ?? "");
+        const res = await apiClient.patch(`/menu-items/${id}/`, fd, {
+          headers: { "Content-Type": undefined },
+        });
+        return res.data as MenuItem;
+      } catch (err: any) {
+        setError(extractError(err, "Failed to update menu item"));
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
   const deleteMenuItem = useCallback(async (id: number) => {
     try {
       setLoading(true);
       await apiClient.delete(`/menu-items/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, 'Failed to delete menu item'));
+      setError(extractError(err, "Failed to delete menu item"));
       throw err;
     } finally {
       setLoading(false);
@@ -309,12 +332,12 @@ export function useBusinessApi() {
   const uploadMenuItemPhoto = useCallback(async (formData: FormData) => {
     try {
       setLoading(true);
-      const res = await apiClient.post('/menu-item-photos/', formData, {
-        headers: { 'Content-Type': undefined },
+      const res = await apiClient.post("/menu-item-photos/", formData, {
+        headers: { "Content-Type": undefined },
       });
       return res.data as MenuItemPhoto;
     } catch (err: any) {
-      setError(extractError(err, 'Failed to upload menu item photo'));
+      setError(extractError(err, "Failed to upload menu item photo"));
       throw err;
     } finally {
       setLoading(false);
@@ -326,7 +349,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/menu-item-photos/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, 'Failed to delete menu item photo'));
+      setError(extractError(err, "Failed to delete menu item photo"));
       throw err;
     } finally {
       setLoading(false);
@@ -340,7 +363,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/service-items/?business=${businessId}`);
       return (res.data.results ?? res.data) as ServiceItem[];
     } catch (err: any) {
-      setError(extractError(err, 'Failed to load service items'));
+      setError(extractError(err, "Failed to load service items"));
       throw err;
     } finally {
       setLoading(false);
@@ -350,37 +373,40 @@ export function useBusinessApi() {
   const createServiceItem = useCallback(async (formData: FormData) => {
     try {
       setLoading(true);
-      const res = await apiClient.post('/service-items/', formData, {
-        headers: { 'Content-Type': undefined },
+      const res = await apiClient.post("/service-items/", formData, {
+        headers: { "Content-Type": undefined },
       });
       return res.data as ServiceItem;
     } catch (err: any) {
-      setError(extractError(err, 'Failed to create service item'));
+      setError(extractError(err, "Failed to create service item"));
       throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const updateServiceItem = useCallback(async (id: number, data: Partial<ServiceItem>) => {
-    try {
-      setLoading(true);
-      const res = await apiClient.patch(`/service-items/${id}/`, data);
-      return res.data as ServiceItem;
-    } catch (err: any) {
-      setError(extractError(err, 'Failed to update service item'));
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const updateServiceItem = useCallback(
+    async (id: number, data: Partial<ServiceItem>) => {
+      try {
+        setLoading(true);
+        const res = await apiClient.patch(`/service-items/${id}/`, data);
+        return res.data as ServiceItem;
+      } catch (err: any) {
+        setError(extractError(err, "Failed to update service item"));
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   const deleteServiceItem = useCallback(async (id: number) => {
     try {
       setLoading(true);
       await apiClient.delete(`/service-items/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, 'Failed to delete service item'));
+      setError(extractError(err, "Failed to delete service item"));
       throw err;
     } finally {
       setLoading(false);
@@ -394,7 +420,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/booking-links/?business=${businessId}`);
       return (res.data.results ?? res.data) as BookingLink[];
     } catch (err: any) {
-      setError(extractError(err, 'Failed to load booking links'));
+      setError(extractError(err, "Failed to load booking links"));
       throw err;
     } finally {
       setLoading(false);
@@ -402,19 +428,19 @@ export function useBusinessApi() {
   }, []);
 
   const createBookingLink = useCallback(
-    async (data: Omit<BookingLink, 'id' | 'created_at' | 'updated_at'>) => {
+    async (data: Omit<BookingLink, "id" | "created_at" | "updated_at">) => {
       try {
         setLoading(true);
-        const res = await apiClient.post('/booking-links/', data);
+        const res = await apiClient.post("/booking-links/", data);
         return res.data as BookingLink;
       } catch (err: any) {
-        setError(extractError(err, 'Failed to create booking link'));
+        setError(extractError(err, "Failed to create booking link"));
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   const updateBookingLink = useCallback(
@@ -424,13 +450,13 @@ export function useBusinessApi() {
         const res = await apiClient.patch(`/booking-links/${id}/`, data);
         return res.data as BookingLink;
       } catch (err: any) {
-        setError(extractError(err, 'Failed to update booking link'));
+        setError(extractError(err, "Failed to update booking link"));
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   const deleteBookingLink = useCallback(async (id: number) => {
@@ -438,7 +464,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/booking-links/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, 'Failed to delete booking link'));
+      setError(extractError(err, "Failed to delete booking link"));
       throw err;
     } finally {
       setLoading(false);
@@ -452,7 +478,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/social-links/?business=${businessId}`);
       return (res.data.results ?? res.data) as SocialLink[];
     } catch (err: any) {
-      setError(extractError(err, 'Failed to load social links'));
+      setError(extractError(err, "Failed to load social links"));
       throw err;
     } finally {
       setLoading(false);
@@ -460,19 +486,19 @@ export function useBusinessApi() {
   }, []);
 
   const createSocialLink = useCallback(
-    async (data: Omit<SocialLink, 'id' | 'created_at' | 'updated_at'>) => {
+    async (data: Omit<SocialLink, "id" | "created_at" | "updated_at">) => {
       try {
         setLoading(true);
-        const res = await apiClient.post('/social-links/', data);
+        const res = await apiClient.post("/social-links/", data);
         return res.data as SocialLink;
       } catch (err: any) {
-        setError(extractError(err, 'Failed to create social link'));
+        setError(extractError(err, "Failed to create social link"));
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   const updateSocialLink = useCallback(
@@ -482,13 +508,13 @@ export function useBusinessApi() {
         const res = await apiClient.patch(`/social-links/${id}/`, data);
         return res.data as SocialLink;
       } catch (err: any) {
-        setError(extractError(err, 'Failed to update social link'));
+        setError(extractError(err, "Failed to update social link"));
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   const deleteSocialLink = useCallback(async (id: number) => {
@@ -496,7 +522,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/social-links/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, 'Failed to delete social link'));
+      setError(extractError(err, "Failed to delete social link"));
       throw err;
     } finally {
       setLoading(false);
@@ -507,10 +533,12 @@ export function useBusinessApi() {
   const listPhotos = useCallback(async (businessId: number) => {
     try {
       setLoading(true);
-      const res = await apiClient.get(`/business-photos/?business=${businessId}`);
+      const res = await apiClient.get(
+        `/business-photos/?business=${businessId}`,
+      );
       return (res.data.results ?? res.data) as BusinessPhoto[];
     } catch (err: any) {
-      setError(extractError(err, 'Failed to load photos'));
+      setError(extractError(err, "Failed to load photos"));
       throw err;
     } finally {
       setLoading(false);
@@ -520,12 +548,12 @@ export function useBusinessApi() {
   const uploadPhoto = useCallback(async (formData: FormData) => {
     try {
       setLoading(true);
-      const res = await apiClient.post('/business-photos/', formData, {
-        headers: { 'Content-Type': undefined },
+      const res = await apiClient.post("/business-photos/", formData, {
+        headers: { "Content-Type": undefined },
       });
       return res.data as BusinessPhoto;
     } catch (err: any) {
-      setError(extractError(err, 'Failed to upload photo'));
+      setError(extractError(err, "Failed to upload photo"));
       throw err;
     } finally {
       setLoading(false);
@@ -537,7 +565,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/business-photos/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, 'Failed to delete photo'));
+      setError(extractError(err, "Failed to delete photo"));
       throw err;
     } finally {
       setLoading(false);

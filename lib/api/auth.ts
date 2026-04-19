@@ -1,19 +1,20 @@
-import axios, { AxiosInstance } from 'axios';
-import { LoginResponse, RegisterResponse, AuthError } from '@/lib/types/auth';
+import axios, { AxiosInstance } from "axios";
+import { LoginResponse, RegisterResponse, AuthError } from "@/lib/types/auth";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8005/api';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8005/api";
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 // Add token to requests if available
 apiClient.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Token ${token}`;
     }
@@ -27,25 +28,25 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expired or invalid
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('sessionId');
-        window.location.href = '/login';
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        localStorage.removeItem("sessionId");
+        window.location.href = "/login";
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export const authApi = {
   login: async (
     idToken: string,
     accessToken?: string,
-    redirectUrl?: string
+    redirectUrl?: string,
   ): Promise<LoginResponse> => {
     try {
-      const response = await apiClient.post('/auth/google-login/', {
+      const response = await apiClient.post("/auth/google-login/", {
         id_token: idToken,
         access_token: accessToken,
         redirect_url: redirectUrl,
@@ -54,9 +55,9 @@ export const authApi = {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const errorData: AuthError = error.response?.data || {
-          error: 'REQUEST_ERROR',
+          error: "REQUEST_ERROR",
           message: error.message,
-          details: 'Failed to complete login request',
+          details: "Failed to complete login request",
         };
         throw errorData;
       }
@@ -71,11 +72,11 @@ export const authApi = {
     lastName?: string,
     phoneNumber?: string,
     accessToken?: string,
-    signupFlow: string = 'web',
-    redirectUrl?: string
+    signupFlow: string = "web",
+    redirectUrl?: string,
   ): Promise<RegisterResponse> => {
     try {
-      const response = await apiClient.post('/auth/google-register/', {
+      const response = await apiClient.post("/auth/google-register/", {
         id_token: idToken,
         access_token: accessToken,
         username,
@@ -89,9 +90,9 @@ export const authApi = {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const errorData: AuthError = error.response?.data || {
-          error: 'REQUEST_ERROR',
+          error: "REQUEST_ERROR",
           message: error.message,
-          details: 'Failed to complete registration request',
+          details: "Failed to complete registration request",
         };
         throw errorData;
       }
@@ -101,14 +102,14 @@ export const authApi = {
 
   getCurrentUser: async () => {
     try {
-      const response = await apiClient.get('/users/me/');
+      const response = await apiClient.get("/users/me/");
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const errorData: AuthError = error.response?.data || {
-          error: 'REQUEST_ERROR',
+          error: "REQUEST_ERROR",
           message: error.message,
-          details: 'Failed to fetch user profile',
+          details: "Failed to fetch user profile",
         };
         throw errorData;
       }
@@ -118,9 +119,9 @@ export const authApi = {
 
   logout: () => {
     // Clear local storage and cookies
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('sessionId');
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("sessionId");
   },
 };
 

@@ -1,13 +1,20 @@
-'use client';
+"use client";
 
-import React, { useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Loader2, ChevronRight, MapPin, ImagePlus, Trash2, ExternalLink } from 'lucide-react';
-import { BusinessProfile } from '@/lib/types/business';
-
+import React, { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertCircle,
+  Loader2,
+  ChevronRight,
+  MapPin,
+  ImagePlus,
+  Trash2,
+  ExternalLink,
+} from "lucide-react";
+import { BusinessProfile } from "@/lib/types/business";
 
 interface Step1FormProps {
   onSubmit: (data: {
@@ -27,7 +34,8 @@ interface Step1FormProps {
 function parseGoogleMapsUrl(url: string): { lat: number; lng: number } | null {
   // @lat,lng
   const atMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-  if (atMatch) return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) };
+  if (atMatch)
+    return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) };
 
   // ?q=lat,lng or &q=lat,lng
   const qMatch = url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
@@ -35,7 +43,8 @@ function parseGoogleMapsUrl(url: string): { lat: number; lng: number } | null {
 
   // ll=lat,lng
   const llMatch = url.match(/ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-  if (llMatch) return { lat: parseFloat(llMatch[1]), lng: parseFloat(llMatch[2]) };
+  if (llMatch)
+    return { lat: parseFloat(llMatch[1]), lng: parseFloat(llMatch[2]) };
 
   return null;
 }
@@ -44,37 +53,60 @@ function buildMapSrc(address: string): string {
   return `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
 }
 
-export function Step1Form({ onSubmit, loading, error, currentBusiness }: Step1FormProps) {
+export function Step1Form({
+  onSubmit,
+  loading,
+  error,
+  currentBusiness,
+}: Step1FormProps) {
   const heroInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
-    business_name: currentBusiness?.business_name || '',
-    category:      currentBusiness?.category      || 'restaurant',
-    address:       currentBusiness?.address       || '',
-    phone_number:  currentBusiness?.phone_number  || '',
+    business_name: currentBusiness?.business_name || "",
+    category: currentBusiness?.category || "restaurant",
+    address: currentBusiness?.address || "",
+    phone_number: currentBusiness?.phone_number || "",
   });
 
   // Hero banner state
-  const [heroFile,    setHeroFile]    = useState<File | null>(null);
-  const [heroPreview, setHeroPreview] = useState<string | null>(currentBusiness?.hero_image || null);
+  const [heroFile, setHeroFile] = useState<File | null>(null);
+  const [heroPreview, setHeroPreview] = useState<string | null>(
+    currentBusiness?.hero_image || null,
+  );
 
   // Location state
-  const [mapsUrl,    setMapsUrl]    = useState('');
-  const [lat,        setLat]        = useState<string>(currentBusiness?.latitude  != null ? String(currentBusiness.latitude)  : '');
-  const [lng,        setLng]        = useState<string>(currentBusiness?.longitude != null ? String(currentBusiness.longitude) : '');
-  const [mapPreviewAddr, setMapPreviewAddr] = useState(currentBusiness?.address || '');
+  const [mapsUrl, setMapsUrl] = useState("");
+  const [lat, setLat] = useState<string>(
+    currentBusiness?.latitude != null ? String(currentBusiness.latitude) : "",
+  );
+  const [lng, setLng] = useState<string>(
+    currentBusiness?.longitude != null ? String(currentBusiness.longitude) : "",
+  );
+  const [mapPreviewAddr, setMapPreviewAddr] = useState(
+    currentBusiness?.address || "",
+  );
 
   const categories = [
-    { value: 'restaurant', label: 'レストラン', labelEn: 'Restaurant', icon: '🍽️' },
-    { value: 'hair_salon', label: '美容院',     labelEn: 'Hair Salon',  icon: '💇' },
-    { value: 'barbershop', label: 'バーバー',   labelEn: 'Barbershop',  icon: '💈' },
-    { value: 'spa',        label: 'スパ',       labelEn: 'Spa',         icon: '🧖' },
-    { value: 'gym',        label: 'ジム',       labelEn: 'Gym',         icon: '🏋️' },
+    {
+      value: "restaurant",
+      label: "レストラン",
+      labelEn: "Restaurant",
+      icon: "🍽️",
+    },
+    { value: "hair_salon", label: "美容院", labelEn: "Hair Salon", icon: "💇" },
+    {
+      value: "barbershop",
+      label: "バーバー",
+      labelEn: "Barbershop",
+      icon: "💈",
+    },
+    { value: "spa", label: "スパ", labelEn: "Spa", icon: "🧖" },
+    { value: "gym", label: "ジム", labelEn: "Gym", icon: "🏋️" },
   ];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleHeroPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,7 +114,7 @@ export function Step1Form({ onSubmit, loading, error, currentBusiness }: Step1Fo
     if (!file) return;
     setHeroFile(file);
     setHeroPreview(URL.createObjectURL(file));
-    e.target.value = '';
+    e.target.value = "";
   };
 
   const handleHeroRemove = () => {
@@ -110,12 +142,16 @@ export function Step1Form({ onSubmit, loading, error, currentBusiness }: Step1Fo
     await onSubmit({
       ...formData,
       heroImage: heroFile,
-      latitude:  lat  ? parseFloat(lat)  : undefined,
-      longitude: lng  ? parseFloat(lng)  : undefined,
+      latitude: lat ? parseFloat(lat) : undefined,
+      longitude: lng ? parseFloat(lng) : undefined,
     });
   };
 
-  const canSubmit = !loading && !!formData.business_name && !!formData.address && !!formData.phone_number;
+  const canSubmit =
+    !loading &&
+    !!formData.business_name &&
+    !!formData.address &&
+    !!formData.phone_number;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -129,7 +165,10 @@ export function Step1Form({ onSubmit, loading, error, currentBusiness }: Step1Fo
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
           <div className="flex items-center gap-1 mb-2">
-            <Label htmlFor="business_name" className="font-semibold text-gray-900">
+            <Label
+              htmlFor="business_name"
+              className="font-semibold text-gray-900"
+            >
               店舗名 / Business Name
             </Label>
             <span className="text-red-500 text-sm">必須</span>
@@ -148,25 +187,36 @@ export function Step1Form({ onSubmit, loading, error, currentBusiness }: Step1Fo
 
         <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
           <div className="flex items-center gap-1 mb-4">
-            <Label className="font-semibold text-gray-900">業種 / Category</Label>
+            <Label className="font-semibold text-gray-900">
+              業種 / Category
+            </Label>
             <span className="text-red-500 text-sm">必須</span>
           </div>
           <div className="grid grid-cols-5 gap-2">
-            {categories.map(cat => (
+            {categories.map((cat) => (
               <button
                 key={cat.value}
                 type="button"
-                onClick={() => setFormData(prev => ({ ...prev, category: cat.value as BusinessProfile['category'] }))}
+                onClick={() =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    category: cat.value as BusinessProfile["category"],
+                  }))
+                }
                 disabled={loading}
                 className={`p-3 rounded-2xl border-2 transition-all text-center flex flex-col items-center justify-center ${
                   formData.category === cat.value
-                    ? 'border-gray-900 bg-gray-900 text-white'
-                    : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'
+                    ? "border-gray-900 bg-gray-900 text-white"
+                    : "border-gray-200 bg-white text-gray-900 hover:bg-gray-50"
                 }`}
               >
                 <div className="text-2xl mb-1">{cat.icon}</div>
-                <div className="font-semibold text-xs leading-tight">{cat.label}</div>
-                <div className="text-xs opacity-70 leading-tight">{cat.labelEn}</div>
+                <div className="font-semibold text-xs leading-tight">
+                  {cat.label}
+                </div>
+                <div className="text-xs opacity-70 leading-tight">
+                  {cat.labelEn}
+                </div>
               </button>
             ))}
           </div>
@@ -199,7 +249,10 @@ export function Step1Form({ onSubmit, loading, error, currentBusiness }: Step1Fo
 
         <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
           <div className="flex items-center gap-1 mb-2">
-            <Label htmlFor="phone_number" className="font-semibold text-gray-900">
+            <Label
+              htmlFor="phone_number"
+              className="font-semibold text-gray-900"
+            >
               電話番号 / Phone
             </Label>
             <span className="text-red-500 text-sm">必須</span>
@@ -224,7 +277,9 @@ export function Step1Form({ onSubmit, loading, error, currentBusiness }: Step1Fo
           <p className="text-xs text-gray-400 mt-0.5">
             店舗ページの最上部に表示されるメイン画像（推奨: 1200×400px 以上）
             <br />
-            <span className="text-gray-300">Main banner image shown at the top of your public page.</span>
+            <span className="text-gray-300">
+              Main banner image shown at the top of your public page.
+            </span>
           </p>
         </div>
 
@@ -265,7 +320,9 @@ export function Step1Form({ onSubmit, loading, error, currentBusiness }: Step1Fo
           >
             <ImagePlus className="h-8 w-8" />
             <div className="text-center">
-              <p className="text-sm font-semibold">クリックして画像をアップロード</p>
+              <p className="text-sm font-semibold">
+                クリックして画像をアップロード
+              </p>
               <p className="text-xs mt-0.5">Click to upload hero image</p>
             </div>
             <p className="text-xs text-gray-300">JPG, PNG, WebP</p>
@@ -288,13 +345,17 @@ export function Step1Form({ onSubmit, loading, error, currentBusiness }: Step1Fo
           <p className="text-xs text-gray-400 mt-0.5">
             GoogleマップのURLを貼り付けると、座標が自動で入力されます。
             <br />
-            <span className="text-gray-300">Paste a Google Maps URL to auto-fill coordinates.</span>
+            <span className="text-gray-300">
+              Paste a Google Maps URL to auto-fill coordinates.
+            </span>
           </p>
         </div>
 
         {/* URL paste */}
         <div>
-          <Label className="text-xs text-gray-500 mb-1.5 block">Google Maps URL（任意 / Optional）</Label>
+          <Label className="text-xs text-gray-500 mb-1.5 block">
+            Google Maps URL（任意 / Optional）
+          </Label>
           <div className="relative">
             <Input
               type="url"
@@ -335,8 +396,8 @@ export function Step1Form({ onSubmit, loading, error, currentBusiness }: Step1Fo
 
         {!mapPreviewAddr && (
           <p className="text-xs text-gray-400 italic">
-            住所を入力してフォーカスを外すと地図プレビューが表示されます /
-            Fill in the address and click away to see a map preview.
+            住所を入力してフォーカスを外すと地図プレビューが表示されます / Fill
+            in the address and click away to see a map preview.
           </p>
         )}
       </div>

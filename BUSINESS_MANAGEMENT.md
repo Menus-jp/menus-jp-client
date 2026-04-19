@@ -160,6 +160,7 @@ Public business page
 Creates a new business with name and category.
 
 **Props:**
+
 ```typescript
 {
   onSubmit: (data: { business_name: string; category: string }) => Promise<void>;
@@ -170,6 +171,7 @@ Creates a new business with name and category.
 ```
 
 **Features:**
+
 - Business name input
 - 5 category buttons with icons
 - Visual feedback for selection
@@ -184,6 +186,7 @@ Creates a new business with name and category.
 Collects contact information and business hours.
 
 **Props:**
+
 ```typescript
 {
   business: BusinessProfile;
@@ -196,6 +199,7 @@ Collects contact information and business hours.
 ```
 
 **Features:**
+
 - Phone number input
 - Address input
 - 7-day weekly hours configuration
@@ -211,6 +215,7 @@ Collects contact information and business hours.
 Manages booking and social media links.
 
 **Props:**
+
 ```typescript
 {
   business: BusinessProfile;
@@ -225,6 +230,7 @@ Manages booking and social media links.
 ```
 
 **Features:**
+
 - Booking platform selection (Tabelog, Hot Pepper, LINE, OpenTable)
 - Social media platform selection (Instagram, Facebook, Twitter, YouTube, TikTok, LINE)
 - URL input validation
@@ -240,6 +246,7 @@ Manages booking and social media links.
 Plan selection and publishing.
 
 **Props:**
+
 ```typescript
 {
   business: BusinessProfile;
@@ -251,6 +258,7 @@ Plan selection and publishing.
 ```
 
 **Features:**
+
 - Free vs Premium plan selection
 - Custom domain input (Premium only)
 - Feature comparison display
@@ -267,6 +275,7 @@ Plan selection and publishing.
 Main onboarding flow page managing all 4 steps.
 
 **Features:**
+
 - Step-by-step progression
 - Progress bar with percentage
 - Success messages
@@ -283,6 +292,7 @@ Main onboarding flow page managing all 4 steps.
 Business dashboard showing all user's businesses.
 
 **Features:**
+
 - Business grid/list display
 - Publication status indicators
 - Category icons
@@ -300,6 +310,7 @@ Business dashboard showing all user's businesses.
 Business detail and edit page.
 
 **Features:**
+
 - Tabbed interface (Basic, Menu, Links, Analytics)
 - Inline editing of business info
 - Save functionality
@@ -332,7 +343,7 @@ publishBusiness(id: number): Promise<{ is_published: boolean }>
 createBusinessHours(data: BusinessHours): Promise<BusinessHours>
 updateBusinessHours(id: number, data: Partial<BusinessHours>): Promise<BusinessHours>
 
-// Menu Items 
+// Menu Items
 createMenuItem(data: FormData | MenuItem): Promise<MenuItem>
 updateMenuItem(id: number, data: Partial<MenuItem>): Promise<MenuItem>
 
@@ -346,6 +357,7 @@ updateSocialLink(id: number, data: Partial<SocialLink>): Promise<SocialLink>
 ```
 
 **State:**
+
 ```typescript
 {
   loading: boolean;
@@ -357,18 +369,14 @@ updateSocialLink(id: number, data: Partial<SocialLink>): Promise<SocialLink>
 **Location:** `lib/hooks/useBusinessApi.ts`
 
 **Example Usage:**
+
 ```typescript
-const {
-  loading,
-  error,
-  listBusinesses,
-  createBusiness,
-} = useBusinessApi();
+const { loading, error, listBusinesses, createBusiness } = useBusinessApi();
 
 const businesses = await listBusinesses();
 const business = await createBusiness({
-  business_name: 'My Restaurant',
-  category: 'restaurant',
+  business_name: "My Restaurant",
+  category: "restaurant",
 });
 ```
 
@@ -427,18 +435,12 @@ Based on menus.jp branding:
 
 ```css
 /* Primary Colors */
---color-green-600: #16a34a  /* CTA buttons, interactive */
---color-green-700: #15803d  /* Hover state */
---color-green-50:  #f0fdf4  /* Light backgrounds */
-
-/* Accents */
---color-blue-600:  #2563eb  /* Secondary buttons */
---color-yellow-100: #fef3c7 /* Badges */
-
-/* Neutrals */
---color-gray-900: #111827  /* Text */
---color-gray-600: #4b5563  /* Secondary text */
---color-gray-50:  #f9fafb  /* Page background */
+--color-green-600: #16a34a /* CTA buttons, interactive */
+  --color-green-700: #15803d /* Hover state */ --color-green-50: #f0fdf4
+  /* Light backgrounds */ /* Accents */ --color-blue-600: #2563eb
+  /* Secondary buttons */ --color-yellow-100: #fef3c7 /* Badges */
+  /* Neutrals */ --color-gray-900: #111827 /* Text */ --color-gray-600: #4b5563
+  /* Secondary text */ --color-gray-50: #f9fafb /* Page background */;
 ```
 
 ### Components Used
@@ -555,6 +557,7 @@ curl -X POST http://localhost:8000/api/businesses/1/publish/ \
 **Cause:** Token not in localStorage or expired
 
 **Solution:**
+
 1. Clear browser storage
 2. Log out and log back in
 3. Check Network tab to verify Authorization header
@@ -564,6 +567,7 @@ curl -X POST http://localhost:8000/api/businesses/1/publish/ \
 **Cause:** API endpoint error
 
 **Solution:**
+
 1. Check backend is running
 2. Verify API responses in Network tab
 3. Check error messages in UI alerts
@@ -574,6 +578,7 @@ curl -X POST http://localhost:8000/api/businesses/1/publish/ \
 **Cause:** Form validation or required fields
 
 **Solution:**
+
 1. Check all required fields are filled
 2. Verify phone number format
 3. Verify URLs are valid
@@ -584,6 +589,7 @@ curl -X POST http://localhost:8000/api/businesses/1/publish/ \
 **Cause:** State not updating or router issue
 
 **Solution:**
+
 1. Check browser console for errors
 2. Verify page is protected (not blocking redirect)
 3. Clear browser cache

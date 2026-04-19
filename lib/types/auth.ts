@@ -45,7 +45,7 @@ export interface RegisterResponse {
     signup_flow: string;
     is_email_verified: boolean;
     second_factor_enabled: boolean;
-    profile_completion_status: 'incomplete' | 'partial' | 'complete';
+    profile_completion_status: "incomplete" | "partial" | "complete";
     created_at: string;
     updated_at: string;
   };
@@ -67,7 +67,11 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
-  login: (idToken: string, accessToken?: string, redirectUrl?: string) => Promise<void>;
+  login: (
+    idToken: string,
+    accessToken?: string,
+    redirectUrl?: string,
+  ) => Promise<void>;
   register: (
     idToken: string,
     userData?: {
@@ -76,7 +80,7 @@ export interface AuthContextType {
       last_name?: string;
       phone_number?: string;
       access_token?: string;
-    }
+    },
   ) => Promise<void>;
   logout: () => void;
   clearError: () => void;

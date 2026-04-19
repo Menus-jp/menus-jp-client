@@ -2,7 +2,7 @@
 export interface BusinessProfile {
   id: number;
   business_name: string;
-  category: 'restaurant' | 'hair_salon' | 'barbershop' | 'spa' | 'gym';
+  category: "restaurant" | "hair_salon" | "barbershop" | "spa" | "gym";
   slug: string;
   phone_number?: string;
   address?: string;
@@ -10,7 +10,7 @@ export interface BusinessProfile {
   longitude?: number;
   maps_url?: string;
   website?: string;
-  plan: 'free' | 'premium';
+  plan: "free" | "premium";
   custom_domain?: string;
   is_published: boolean;
   is_active: boolean;
@@ -24,19 +24,35 @@ export interface BusinessProfile {
 export interface BusinessHours {
   id: number;
   business: number;
-  day_of_week: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+  day_of_week:
+    | "monday"
+    | "tuesday"
+    | "wednesday"
+    | "thursday"
+    | "friday"
+    | "saturday"
+    | "sunday";
   is_closed: boolean;
   opening_time?: string | null;
   closing_time?: string | null;
   last_order_time?: string | null;
 }
 
-export type BulkHoursEntry = Omit<BusinessHours, 'id' | 'business'> & { id?: number };
+export type BulkHoursEntry = Omit<BusinessHours, "id" | "business"> & {
+  id?: number;
+};
 
 export interface ClosedDay {
   id: number;
   business: number;
-  day_of_week: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+  day_of_week:
+    | "monday"
+    | "tuesday"
+    | "wednesday"
+    | "thursday"
+    | "friday"
+    | "saturday"
+    | "sunday";
   reason?: string;
 }
 
@@ -66,6 +82,9 @@ export interface MenuItem {
   business: number;
   category_jp?: string;
   category_en?: string;
+  discount_percentage?: string | null;
+  discount_start_time?: string | null;
+  discount_end_time?: string | null;
   photos?: MenuItemPhoto[];
   created_at: string;
   updated_at: string;
@@ -91,7 +110,14 @@ export interface ServiceItem {
 export interface BookingLink {
   id: number;
   business: number;
-  platform: 'tabelog' | 'hot_pepper_gourmet' | 'hot_pepper_beauty' | 'line_reservation' | 'open_table' | 'minimo' | 'custom';
+  platform:
+    | "tabelog"
+    | "hot_pepper_gourmet"
+    | "hot_pepper_beauty"
+    | "line_reservation"
+    | "open_table"
+    | "minimo"
+    | "custom";
   custom_name?: string;
   url: string;
   is_primary: boolean;
@@ -103,7 +129,14 @@ export interface BookingLink {
 export interface SocialLink {
   id: number;
   business: number;
-  platform: 'instagram' | 'facebook' | 'twitter' | 'youtube' | 'tiktok' | 'line' | 'custom';
+  platform:
+    | "instagram"
+    | "facebook"
+    | "twitter"
+    | "youtube"
+    | "tiktok"
+    | "line"
+    | "custom";
   custom_name?: string;
   url: string;
   display_order: number;

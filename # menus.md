@@ -2,7 +2,7 @@
 
 ## Overview
 
-**menus.jp** is a mobile-first SaaS platform that allows restaurant and salon owners in Japan to create a public business profile page in minutes — accessible via a single shareable link. The tagline is: *"Your business. One link. Done."*
+**menus.jp** is a mobile-first SaaS platform that allows restaurant and salon owners in Japan to create a public business profile page in minutes — accessible via a single shareable link. The tagline is: _"Your business. One link. Done."_
 
 ---
 
@@ -46,6 +46,7 @@ All fields are filled in manually by the user:
 ### Step 3 / 4 — Set Up Booking & Social Links
 
 **Booking Links:**
+
 - Tabelog
 - HOT PEPPER Gourmet
 - LINE Reservation
@@ -53,6 +54,7 @@ All fields are filled in manually by the user:
 - Add other custom booking service
 
 **Social Media Links:**
+
 - Instagram
 - Facebook
 - X (Twitter)
@@ -74,17 +76,17 @@ All fields are filled in manually by the user:
 
 ### Common to All Business Types
 
-| Feature | Details |
-|---------|---------|
-| Language toggle | Switch between Japanese and English |
+| Feature                 | Details                                                                |
+| ----------------------- | ---------------------------------------------------------------------- |
+| Language toggle         | Switch between Japanese and English                                    |
 | Live open/closed status | Real-time indicator showing current status, hours, and last order time |
-| Closed day display | Shows the weekly closed day on the page |
-| Directions button | Links to map/navigation app |
-| Call button | One-tap phone call |
-| Booking buttons | Up to 4 displayed; extras grouped under "+ More" |
-| Social follow section | Icons and links for all enabled social accounts |
-| Footer bar | Address, phone number, and Open Map shortcut |
-| Powered by badge | "Powered by menus.jp" shown on Free plan; hidden on Premium |
+| Closed day display      | Shows the weekly closed day on the page                                |
+| Directions button       | Links to map/navigation app                                            |
+| Call button             | One-tap phone call                                                     |
+| Booking buttons         | Up to 4 displayed; extras grouped under "+ More"                       |
+| Social follow section   | Icons and links for all enabled social accounts                        |
+| Footer bar              | Address, phone number, and Open Map shortcut                           |
+| Powered by badge        | "Powered by menus.jp" shown on Free plan; hidden on Premium            |
 
 ### Restaurant Page
 
@@ -103,19 +105,19 @@ All fields are filled in manually by the user:
 
 ## Key Features & Selling Points
 
-| Feature | Description |
-|---------|-------------|
-| Mobile-first design | Entirely optimized for smartphone screens |
-| Bilingual support | Full Japanese and English on every public page |
-| Google Login | Simple one-tap sign-in via Google account |
-| Manual business setup | Owner fills in all business details themselves |
-| Live open/closed status | Dynamic status based on configured business hours |
-| Booking platform links | Supports Tabelog, HOT PEPPER, LINE, OpenTable, and more |
-| Social media links | All major platforms supported |
-| Fast and lightweight | WebP images used; page size target under 500KB |
-| Custom domain | Available on Premium plan |
-| Remove branding | "Powered by menus.jp" badge removed on Premium |
-| Analytics | Page visit analytics available on Premium plan |
+| Feature                 | Description                                             |
+| ----------------------- | ------------------------------------------------------- |
+| Mobile-first design     | Entirely optimized for smartphone screens               |
+| Bilingual support       | Full Japanese and English on every public page          |
+| Google Login            | Simple one-tap sign-in via Google account               |
+| Manual business setup   | Owner fills in all business details themselves          |
+| Live open/closed status | Dynamic status based on configured business hours       |
+| Booking platform links  | Supports Tabelog, HOT PEPPER, LINE, OpenTable, and more |
+| Social media links      | All major platforms supported                           |
+| Fast and lightweight    | WebP images used; page size target under 500KB          |
+| Custom domain           | Available on Premium plan                               |
+| Remove branding         | "Powered by menus.jp" badge removed on Premium          |
+| Analytics               | Page visit analytics available on Premium plan          |
 
 ---
 
@@ -133,15 +135,15 @@ All fields are filled in manually by the user:
 
 ## Screens Summary
 
-| Screen | Purpose |
-|--------|---------|
-| Landing page | Marketing site with hero, features, pricing, and call to action |
-| Google Login | User authenticates via Google account |
-| Step 1 — Profile setup | Enter business name and select category |
-| Step 2 — Business info | Manually fill in address, hours, photos, etc. |
-| Step 3 — Links | Add booking services and social media links |
-| Step 4 — Go live | Publish and share the business page |
-| Public page (Restaurant) | Customer-facing profile page for restaurants |
-| Public page (Salon) | Customer-facing profile page for salons and beauty businesses |
+| Screen                   | Purpose                                                         |
+| ------------------------ | --------------------------------------------------------------- |
+| Landing page             | Marketing site with hero, features, pricing, and call to action |
+| Google Login             | User authenticates via Google account                           |
+| Step 1 — Profile setup   | Enter business name and select category                         |
+| Step 2 — Business info   | Manually fill in address, hours, photos, etc.                   |
+| Step 3 — Links           | Add booking services and social media links                     |
+| Step 4 — Go live         | Publish and share the business page                             |
+| Public page (Restaurant) | Customer-facing profile page for restaurants                    |
+| Public page (Salon)      | Customer-facing profile page for salons and beauty businesses   |
 
 ---

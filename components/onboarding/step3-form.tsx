@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Switch } from '@/components/ui/switch';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertCircle,
   Loader2,
@@ -15,9 +15,9 @@ import {
   Share2,
   Link,
   X as XIcon,
-} from 'lucide-react';
-import { BusinessProfile, BookingLink, SocialLink } from '@/lib/types/business';
-import apiClient from '@/lib/api/auth';
+} from "lucide-react";
+import { BusinessProfile, BookingLink, SocialLink } from "@/lib/types/business";
+import apiClient from "@/lib/api/auth";
 
 interface Step3FormProps {
   business: BusinessProfile;
@@ -26,9 +26,17 @@ interface Step3FormProps {
   error?: string | null;
 }
 
-function PlatformIcon({ bg, children }: { bg: string; children: React.ReactNode }) {
+function PlatformIcon({
+  bg,
+  children,
+}: {
+  bg: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bg}`}>
+    <div
+      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bg}`}
+    >
       {children}
     </div>
   );
@@ -64,9 +72,8 @@ const TikTokIcon = () => (
   </svg>
 );
 
-
-type BookingPlatformKey = BookingLink['platform'];
-type SocialPlatformKey = SocialLink['platform'];
+type BookingPlatformKey = BookingLink["platform"];
+type SocialPlatformKey = SocialLink["platform"];
 
 interface BookingPlatformDef {
   key: BookingPlatformKey;
@@ -87,11 +94,11 @@ interface SocialPlatformDef {
 
 const BOOKING_PLATFORMS: BookingPlatformDef[] = [
   {
-    key: 'tabelog',
-    label: '食べログ',
-    labelEn: 'Tabelog',
-    placeholder: 'https://tabelog.com/tokyo/A1300/',
-    iconBg: 'bg-amber-500',
+    key: "tabelog",
+    label: "食べログ",
+    labelEn: "Tabelog",
+    placeholder: "https://tabelog.com/tokyo/A1300/",
+    iconBg: "bg-amber-500",
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
         <path d="M11 2v7H4v2h7v11h2V11h7V9h-7V2z" />
@@ -99,102 +106,110 @@ const BOOKING_PLATFORMS: BookingPlatformDef[] = [
     ),
   },
   {
-    key: 'hot_pepper_gourmet',
-    label: 'HOT PEPPER グルメ',
-    labelEn: 'Hot Pepper Gourmet',
-    placeholder: 'https://www.hotpepper.jp/strJ000123456/',
-    iconBg: 'bg-red-600',
-    icon: <span className="text-white text-xs font-black tracking-tight">HP</span>,
+    key: "hot_pepper_gourmet",
+    label: "HOT PEPPER グルメ",
+    labelEn: "Hot Pepper Gourmet",
+    placeholder: "https://www.hotpepper.jp/strJ000123456/",
+    iconBg: "bg-red-600",
+    icon: (
+      <span className="text-white text-xs font-black tracking-tight">HP</span>
+    ),
   },
   {
-    key: 'line_reservation',
-    label: 'LINE で予約',
-    labelEn: 'LINE',
-    placeholder: 'https://lin.ee/abc123',
-    iconBg: 'bg-green-500',
+    key: "line_reservation",
+    label: "LINE で予約",
+    labelEn: "LINE",
+    placeholder: "https://lin.ee/abc123",
+    iconBg: "bg-green-500",
     icon: <LineIcon />,
   },
   {
-    key: 'open_table',
-    label: 'OpenTable',
-    labelEn: '',
-    placeholder: 'https://opentable.com/...',
-    iconBg: 'bg-white border border-gray-200',
-    icon: <span className="text-red-600 text-2xl font-black leading-none">•</span>,
+    key: "open_table",
+    label: "OpenTable",
+    labelEn: "",
+    placeholder: "https://opentable.com/...",
+    iconBg: "bg-white border border-gray-200",
+    icon: (
+      <span className="text-red-600 text-2xl font-black leading-none">•</span>
+    ),
   },
 ];
 
 const SOCIAL_PLATFORMS_LEFT: SocialPlatformDef[] = [
   {
-    key: 'instagram',
-    label: 'Instagram',
-    placeholder: 'https://instagram.com/@...',
-    iconBg: 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600',
+    key: "instagram",
+    label: "Instagram",
+    placeholder: "https://instagram.com/@...",
+    iconBg: "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600",
     icon: <InstagramIcon />,
   },
   {
-    key: 'facebook',
-    label: 'Facebook',
-    placeholder: 'https://facebook.com/...',
-    iconBg: 'bg-blue-600',
+    key: "facebook",
+    label: "Facebook",
+    placeholder: "https://facebook.com/...",
+    iconBg: "bg-blue-600",
     icon: <FacebookIcon />,
   },
   {
-    key: 'twitter',
-    label: 'X (Twitter)',
-    placeholder: 'https://x.com/...',
-    iconBg: 'bg-gray-950',
+    key: "twitter",
+    label: "X (Twitter)",
+    placeholder: "https://x.com/...",
+    iconBg: "bg-gray-950",
     icon: <XIcon className="w-4 h-4 text-white" />,
   },
   {
-    key: 'line',
-    label: 'LINE（公式アカウント）',
-    placeholder: 'https://lin.ee/...',
-    iconBg: 'bg-green-500',
+    key: "line",
+    label: "LINE（公式アカウント）",
+    placeholder: "https://lin.ee/...",
+    iconBg: "bg-green-500",
     icon: <LineIcon />,
   },
 ];
 
 const SOCIAL_PLATFORMS_RIGHT: SocialPlatformDef[] = [
   {
-    key: 'youtube',
-    label: 'YouTube',
-    placeholder: 'https://youtube.com/@...',
-    iconBg: 'bg-red-600',
+    key: "youtube",
+    label: "YouTube",
+    placeholder: "https://youtube.com/@...",
+    iconBg: "bg-red-600",
     icon: <YouTubeIcon />,
   },
   {
-    key: 'tiktok',
-    label: 'TikTok',
-    placeholder: 'https://tiktok.com/@...',
-    iconBg: 'bg-gray-950',
+    key: "tiktok",
+    label: "TikTok",
+    placeholder: "https://tiktok.com/@...",
+    iconBg: "bg-gray-950",
     icon: <TikTokIcon />,
   },
   {
-    key: 'custom',
-    label: 'その他 / Other',
-    placeholder: 'https://...',
-    iconBg: 'bg-gray-400',
+    key: "custom",
+    label: "その他 / Other",
+    placeholder: "https://...",
+    iconBg: "bg-gray-400",
     icon: <Link className="w-4 h-4 text-white" />,
   },
 ];
 
-const ALL_SOCIAL_PLATFORMS = [...SOCIAL_PLATFORMS_LEFT, ...SOCIAL_PLATFORMS_RIGHT];
+const ALL_SOCIAL_PLATFORMS = [
+  ...SOCIAL_PLATFORMS_LEFT,
+  ...SOCIAL_PLATFORMS_RIGHT,
+];
 
 type LinkState = { id: number | null; url: string; enabled: boolean };
 
 function initBookingState(): Record<BookingPlatformKey, LinkState> {
   const s = {} as Record<BookingPlatformKey, LinkState>;
-  for (const p of BOOKING_PLATFORMS) s[p.key] = { id: null, url: '', enabled: false };
+  for (const p of BOOKING_PLATFORMS)
+    s[p.key] = { id: null, url: "", enabled: false };
   return s;
 }
 
 function initSocialState(): Record<SocialPlatformKey, LinkState> {
   const s = {} as Record<SocialPlatformKey, LinkState>;
-  for (const p of ALL_SOCIAL_PLATFORMS) s[p.key] = { id: null, url: '', enabled: false };
+  for (const p of ALL_SOCIAL_PLATFORMS)
+    s[p.key] = { id: null, url: "", enabled: false };
   return s;
 }
-
 
 function BookingRow({
   def,
@@ -209,7 +224,7 @@ function BookingRow({
   onToggle: (v: boolean) => void;
   disabled?: boolean;
 }) {
-  const hasUrl = state.url.trim() !== '';
+  const hasUrl = state.url.trim() !== "";
   return (
     <div className="flex items-center gap-3 py-3">
       <Switch
@@ -220,16 +235,20 @@ function BookingRow({
       />
       <PlatformIcon bg={def.iconBg}>{def.icon}</PlatformIcon>
       <div className="w-36 shrink-0">
-        <p className="text-sm font-semibold text-gray-900 leading-tight">{def.label}</p>
+        <p className="text-sm font-semibold text-gray-900 leading-tight">
+          {def.label}
+        </p>
         {def.labelEn && (
-          <p className="text-xs text-gray-400 leading-tight mt-0.5">{def.labelEn}</p>
+          <p className="text-xs text-gray-400 leading-tight mt-0.5">
+            {def.labelEn}
+          </p>
         )}
       </div>
       <div className="flex-1 relative">
         <Input
           type="url"
           value={state.url}
-          onChange={e => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           placeholder={def.placeholder}
           disabled={disabled}
           className="pr-9 h-10 rounded-xl border-gray-200 bg-gray-50 focus:bg-white text-sm placeholder:text-gray-300"
@@ -265,7 +284,7 @@ function SocialRow({
   onToggle: (v: boolean) => void;
   disabled?: boolean;
 }) {
-  const hasUrl = state.url.trim() !== '';
+  const hasUrl = state.url.trim() !== "";
   return (
     <div className="flex items-center gap-2.5">
       <Switch
@@ -276,13 +295,15 @@ function SocialRow({
       />
       <PlatformIcon bg={def.iconBg}>{def.icon}</PlatformIcon>
       <div className="w-28 shrink-0">
-        <p className="text-xs font-semibold text-gray-900 leading-tight">{def.label}</p>
+        <p className="text-xs font-semibold text-gray-900 leading-tight">
+          {def.label}
+        </p>
       </div>
       <div className="flex-1 relative">
         <Input
           type="url"
           value={state.url}
-          onChange={e => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           placeholder={def.placeholder}
           disabled={disabled}
           className="pr-8 h-9 rounded-xl border-gray-200 bg-gray-50 focus:bg-white text-xs placeholder:text-gray-300"
@@ -307,9 +328,16 @@ function SocialRow({
 
 // ── Main form ────────────────────────────────────────────────────────────────
 
-export function Step3Form({ business, onSubmit, loading, error }: Step3FormProps) {
-  const [booking, setBooking] = useState<Record<BookingPlatformKey, LinkState>>(initBookingState);
-  const [social, setSocial] = useState<Record<SocialPlatformKey, LinkState>>(initSocialState);
+export function Step3Form({
+  business,
+  onSubmit,
+  loading,
+  error,
+}: Step3FormProps) {
+  const [booking, setBooking] =
+    useState<Record<BookingPlatformKey, LinkState>>(initBookingState);
+  const [social, setSocial] =
+    useState<Record<SocialPlatformKey, LinkState>>(initSocialState);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -323,21 +351,29 @@ export function Step3Form({ business, onSubmit, loading, error }: Step3FormProps
         const bLinks: BookingLink[] = bRes.data.results ?? bRes.data;
         const sLinks: SocialLink[] = sRes.data.results ?? sRes.data;
 
-        setBooking(prev => {
+        setBooking((prev) => {
           const next = { ...prev };
           for (const link of bLinks) {
             if (link.platform in next) {
-              next[link.platform] = { id: link.id, url: link.url, enabled: true };
+              next[link.platform] = {
+                id: link.id,
+                url: link.url,
+                enabled: true,
+              };
             }
           }
           return next;
         });
 
-        setSocial(prev => {
+        setSocial((prev) => {
           const next = { ...prev };
           for (const link of sLinks) {
             if (link.platform in next) {
-              next[link.platform] = { id: link.id, url: link.url, enabled: true };
+              next[link.platform] = {
+                id: link.id,
+                url: link.url,
+                enabled: true,
+              };
             }
           }
           return next;
@@ -349,10 +385,10 @@ export function Step3Form({ business, onSubmit, loading, error }: Step3FormProps
   }, [business.id]);
 
   const updateBooking = (key: BookingPlatformKey, patch: Partial<LinkState>) =>
-    setBooking(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+    setBooking((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
 
   const updateSocial = (key: SocialPlatformKey, patch: Partial<LinkState>) =>
-    setSocial(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+    setSocial((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
 
   const handleBookingUrlChange = (key: BookingPlatformKey, url: string) =>
     updateBooking(key, { url });
@@ -371,28 +407,30 @@ export function Step3Form({ business, onSubmit, loading, error }: Step3FormProps
       // Sync booking links
       for (const def of BOOKING_PLATFORMS) {
         const s = booking[def.key];
-        const hasUrl = s.url.trim() !== '';
+        const hasUrl = s.url.trim() !== "";
         if (hasUrl && s.enabled) {
           if (s.id) {
-            ops.push(apiClient.patch(`/booking-links/${s.id}/`, { url: s.url }));
+            ops.push(
+              apiClient.patch(`/booking-links/${s.id}/`, { url: s.url }),
+            );
           } else {
             ops.push(
               apiClient
-                .post('/booking-links/', {
+                .post("/booking-links/", {
                   business: business.id,
                   platform: def.key,
                   url: s.url,
                   is_primary: false,
                   display_order: BOOKING_PLATFORMS.indexOf(def),
                 })
-                .then(res => updateBooking(def.key, { id: res.data.id }))
+                .then((res) => updateBooking(def.key, { id: res.data.id })),
             );
           }
         } else if (!hasUrl && s.id) {
           ops.push(
             apiClient
               .delete(`/booking-links/${s.id}/`)
-              .then(() => updateBooking(def.key, { id: null }))
+              .then(() => updateBooking(def.key, { id: null })),
           );
         }
       }
@@ -400,27 +438,27 @@ export function Step3Form({ business, onSubmit, loading, error }: Step3FormProps
       // Sync social links
       for (const def of ALL_SOCIAL_PLATFORMS) {
         const s = social[def.key];
-        const hasUrl = s.url.trim() !== '';
+        const hasUrl = s.url.trim() !== "";
         if (hasUrl && s.enabled) {
           if (s.id) {
             ops.push(apiClient.patch(`/social-links/${s.id}/`, { url: s.url }));
           } else {
             ops.push(
               apiClient
-                .post('/social-links/', {
+                .post("/social-links/", {
                   business: business.id,
                   platform: def.key,
                   url: s.url,
                   display_order: ALL_SOCIAL_PLATFORMS.indexOf(def),
                 })
-                .then(res => updateSocial(def.key, { id: res.data.id }))
+                .then((res) => updateSocial(def.key, { id: res.data.id })),
             );
           }
         } else if (!hasUrl && s.id) {
           ops.push(
             apiClient
               .delete(`/social-links/${s.id}/`)
-              .then(() => updateSocial(def.key, { id: null }))
+              .then(() => updateSocial(def.key, { id: null })),
           );
         }
       }
@@ -430,7 +468,7 @@ export function Step3Form({ business, onSubmit, loading, error }: Step3FormProps
       setSaveError(
         err.response?.data?.message ||
           err.response?.data?.detail ||
-          'リンクの保存に失敗しました'
+          "リンクの保存に失敗しました",
       );
       setSaving(false);
       return;
@@ -454,13 +492,13 @@ export function Step3Form({ business, onSubmit, loading, error }: Step3FormProps
       {/* ── A. Booking Links ─────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6">
         <div className="divide-y divide-gray-50">
-          {BOOKING_PLATFORMS.map(def => (
+          {BOOKING_PLATFORMS.map((def) => (
             <BookingRow
               key={def.key}
               def={def}
               state={booking[def.key]}
-              onChange={url => handleBookingUrlChange(def.key, url)}
-              onToggle={enabled => updateBooking(def.key, { enabled })}
+              onChange={(url) => handleBookingUrlChange(def.key, url)}
+              onToggle={(enabled) => updateBooking(def.key, { enabled })}
               disabled={isLoading}
             />
           ))}
@@ -486,31 +524,33 @@ export function Step3Form({ business, onSubmit, loading, error }: Step3FormProps
             <h3 className="font-semibold text-gray-900 text-base leading-tight">
               B. SNSリンク / Social Links
             </h3>
-            <p className="text-xs text-gray-400 mt-0.5">SNSリンクを追加 / Add social links</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              SNSリンクを追加 / Add social links
+            </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-3">
           <div className="space-y-3">
-            {SOCIAL_PLATFORMS_LEFT.map(def => (
+            {SOCIAL_PLATFORMS_LEFT.map((def) => (
               <SocialRow
                 key={def.key}
                 def={def}
                 state={social[def.key]}
-                onChange={url => handleSocialUrlChange(def.key, url)}
-                onToggle={enabled => updateSocial(def.key, { enabled })}
+                onChange={(url) => handleSocialUrlChange(def.key, url)}
+                onToggle={(enabled) => updateSocial(def.key, { enabled })}
                 disabled={isLoading}
               />
             ))}
           </div>
           <div className="space-y-3">
-            {SOCIAL_PLATFORMS_RIGHT.map(def => (
+            {SOCIAL_PLATFORMS_RIGHT.map((def) => (
               <SocialRow
                 key={def.key}
                 def={def}
                 state={social[def.key]}
-                onChange={url => handleSocialUrlChange(def.key, url)}
-                onToggle={enabled => updateSocial(def.key, { enabled })}
+                onChange={(url) => handleSocialUrlChange(def.key, url)}
+                onToggle={(enabled) => updateSocial(def.key, { enabled })}
                 disabled={isLoading}
               />
             ))}
@@ -523,7 +563,8 @@ export function Step3Form({ business, onSubmit, loading, error }: Step3FormProps
             有効にしたリンクは、公開ページの「SNS・フォローはこちら」に表示されます
             <br />
             <span className="text-blue-400">
-              Enabled links will appear in the &quot;FOLLOW US&quot; section on your public page.
+              Enabled links will appear in the &quot;FOLLOW US&quot; section on
+              your public page.
             </span>
           </p>
         </div>
@@ -552,4 +593,3 @@ export function Step3Form({ business, onSubmit, loading, error }: Step3FormProps
     </form>
   );
 }
-

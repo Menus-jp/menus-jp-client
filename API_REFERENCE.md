@@ -3,6 +3,7 @@
 Quick reference for implementing Google OAuth2 in your Next.js application.
 
 ## Table of Contents
+
 - [Login](#login)
 - [Register](#register)
 - [Get Current User](#get-current-user)
@@ -182,14 +183,14 @@ export function UserProfile() {
 ### API Request
 
 ```typescript
-import apiClient from '@/lib/api/auth';
+import apiClient from "@/lib/api/auth";
 
 async function fetchCurrentUser() {
   try {
-    const response = await apiClient.get('/users/me/');
+    const response = await apiClient.get("/users/me/");
     console.log(response.data); // User object
   } catch (error) {
-    console.error('Failed to fetch user:', error);
+    console.error("Failed to fetch user:", error);
   }
 }
 ```
@@ -220,9 +221,9 @@ export function LogoutButton() {
 
 ```typescript
 // Clears automatically
-localStorage.removeItem('token');
-localStorage.removeItem('user');
-localStorage.removeItem('sessionId');
+localStorage.removeItem("token");
+localStorage.removeItem("user");
+localStorage.removeItem("sessionId");
 
 // Auth context updates
 user = null;
@@ -304,7 +305,7 @@ export function LoginWithErrorHandling() {
     if (error) {
       // Show error notification
       console.error('Auth error:', error);
-      
+
       // Clear after 5 seconds
       const timeout = setTimeout(clearError, 5000);
       return () => clearTimeout(timeout);
@@ -326,37 +327,37 @@ export function LoginWithErrorHandling() {
 
 ### Error Codes
 
-| Code | Meaning | Solution |
-|------|---------|----------|
-| `INVALID_TOKEN` | Token is invalid or expired | Re-authenticate |
-| `TOKEN_EXPIRED` | Google token expired | Log out and back in |
-| `USERNAME_TAKEN` | Username already exists | Choose different username |
-| `VALIDATION_ERROR` | Input validation failed | Check form data |
-| `GOOGLE_AUTH_ERROR` | Google API error | Check OAuth config |
+| Code                | Meaning                     | Solution                  |
+| ------------------- | --------------------------- | ------------------------- |
+| `INVALID_TOKEN`     | Token is invalid or expired | Re-authenticate           |
+| `TOKEN_EXPIRED`     | Google token expired        | Log out and back in       |
+| `USERNAME_TAKEN`    | Username already exists     | Choose different username |
+| `VALIDATION_ERROR`  | Input validation failed     | Check form data           |
+| `GOOGLE_AUTH_ERROR` | Google API error            | Check OAuth config        |
 
 ### API Error Handling
 
 ```typescript
-import apiClient from '@/lib/api/auth';
+import apiClient from "@/lib/api/auth";
 
 async function makeRequest() {
   try {
-    const response = await apiClient.get('/users/me/');
+    const response = await apiClient.get("/users/me/");
     return response.data;
   } catch (error) {
     if (error.response?.status === 401) {
       // Token expired
-      console.error('Token expired');
-      window.location.href = '/login';
+      console.error("Token expired");
+      window.location.href = "/login";
     } else if (error.response?.status === 400) {
       // Validation error
-      console.error('Validation error:', error.response.data.details);
+      console.error("Validation error:", error.response.data.details);
     } else if (error.response?.status === 500) {
       // Server error
-      console.error('Server error');
+      console.error("Server error");
     } else {
       // Network error
-      console.error('Network error:', error.message);
+      console.error("Network error:", error.message);
     }
   }
 }
@@ -385,21 +386,25 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com/api
 ## Troubleshooting
 
 ### "Failed to get user info from Google"
+
 - Check Google OAuth credentials
 - Verify Google Identity API is enabled
 - Check token is valid
 
 ### CORS errors
+
 - Verify backend CORS configuration
 - Check `CORS_ALLOWED_ORIGINS` includes frontend domain
 - Verify API URL is correct
 
 ### "Token expired" loops
+
 - Check backend token expiration settings
 - Implement token refresh logic
 - Check client and server clocks are synced
 
 ### Google button not rendering
+
 - Check `GoogleOAuthProvider` wraps your app
 - Verify `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set
 - Check browser console for errors
@@ -409,6 +414,7 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com/api
 ## Best Practices
 
 ### ✅ DO
+
 - Use `useAuth` hook for auth state
 - Display loading states
 - Handle errors gracefully
@@ -417,6 +423,7 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com/api
 - Log errors for debugging
 
 ### ❌ DON'T
+
 - Store token in plain text
 - Expose API endpoints to frontend
 - Skip error handling

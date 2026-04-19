@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import React, { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertCircle,
   Loader2,
@@ -12,9 +12,9 @@ import {
   Plus,
   Trash2,
   ImagePlus,
-} from 'lucide-react';
-import { BusinessProfile, MenuItem } from '@/lib/types/business';
-import { useBusinessApi } from '@/lib/hooks/useBusinessApi';
+} from "lucide-react";
+import { BusinessProfile, MenuItem } from "@/lib/types/business";
+import { useBusinessApi } from "@/lib/hooks/useBusinessApi";
 
 interface Step4FormProps {
   business: BusinessProfile;
@@ -40,8 +40,8 @@ interface MenuItemDraft {
 
 function emptyItem(): MenuItemDraft {
   return {
-    category_jp: '',
-    category_en: '',
+    category_jp: "",
+    category_en: "",
     savedPhotos: [],
     pendingFiles: [],
     pendingLabels: [],
@@ -67,9 +67,11 @@ function PhotoThumb({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
-        alt={label || ''}
+        alt={label || ""}
         className={`w-20 h-20 object-cover rounded-lg border ${
-          pending ? 'border-dashed border-blue-300 opacity-70' : 'border-gray-200'
+          pending
+            ? "border-dashed border-blue-300 opacity-70"
+            : "border-gray-200"
         }`}
       />
       {pending && (
@@ -117,9 +119,9 @@ function MenuItemCard({
     const toAdd = files.slice(0, maxNew);
     onUpdate({
       pendingFiles: [...item.pendingFiles, ...toAdd],
-      pendingLabels: [...item.pendingLabels, ...toAdd.map(() => '')],
+      pendingLabels: [...item.pendingLabels, ...toAdd.map(() => "")],
     });
-    e.target.value = '';
+    e.target.value = "";
   };
 
   const removePending = (idx: number) => {
@@ -147,7 +149,9 @@ function MenuItemCard({
           onClick={() => onUpdate({ isOpen: !item.isOpen })}
         >
           <span className="text-sm font-semibold text-gray-900 truncate">
-            {item.category_jp || item.category_en || `メニューアイテム ${index + 1}`}
+            {item.category_jp ||
+              item.category_en ||
+              `メニューアイテム ${index + 1}`}
           </span>
         </button>
         <button
@@ -165,7 +169,9 @@ function MenuItemCard({
           {/* Category row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-gray-500 mb-1 block">カテゴリ (JP)</Label>
+              <Label className="text-xs text-gray-500 mb-1 block">
+                カテゴリ (JP)
+              </Label>
               <Input
                 placeholder="例: ランチ / 寿司"
                 value={item.category_jp}
@@ -175,7 +181,9 @@ function MenuItemCard({
               />
             </div>
             <div>
-              <Label className="text-xs text-gray-500 mb-1 block">Category (EN)</Label>
+              <Label className="text-xs text-gray-500 mb-1 block">
+                Category (EN)
+              </Label>
               <Input
                 placeholder="e.g. Lunch / Sushi"
                 value={item.category_en}
@@ -189,7 +197,8 @@ function MenuItemCard({
           {/* Photos */}
           <div>
             <Label className="text-xs text-gray-500 mb-2 block">
-              写真 / Photos <span className="text-gray-400">({totalPhotos}/5)</span>
+              写真 / Photos{" "}
+              <span className="text-gray-400">({totalPhotos}/5)</span>
             </Label>
             {totalPhotos > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
@@ -212,7 +221,7 @@ function MenuItemCard({
                     />
                     <Input
                       placeholder="ラベル"
-                      value={item.pendingLabels[pidx] ?? ''}
+                      value={item.pendingLabels[pidx] ?? ""}
                       onChange={(e) => updatePendingLabel(pidx, e.target.value)}
                       disabled={disabled}
                       className="text-[11px] h-6 w-20 px-1.5"
@@ -249,20 +258,27 @@ function MenuItemCard({
   );
 }
 
-export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps) {
+export function Step4Form({
+  business,
+  onSubmit,
+  loading,
+  error,
+}: Step4FormProps) {
   const api = useBusinessApi();
 
-  const [selectedPlan, setSelectedPlan] = useState<'free' | 'premium'>(
-    business.plan || 'free'
+  const [selectedPlan, setSelectedPlan] = useState<"free" | "premium">(
+    business.plan || "free",
   );
-  const [customDomain, setCustomDomain] = useState(business.custom_domain || '');
+  const [customDomain, setCustomDomain] = useState(
+    business.custom_domain || "",
+  );
   const [items, setItems] = useState<MenuItemDraft[]>([]);
   const [menuLoading, setMenuLoading] = useState(false);
   const [menuError, setMenuError] = useState<string | null>(null);
   const [savingMenu, setSavingMenu] = useState(false);
   const [menuSaved, setMenuSaved] = useState(false);
 
-  const isRestaurant = business.category === 'restaurant';
+  const isRestaurant = business.category === "restaurant";
 
   // Load existing menu items on mount (restaurant only)
   useEffect(() => {
@@ -275,8 +291,8 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
           setItems(
             existing.map((item) => ({
               id: item.id,
-              category_jp: item.category_jp ?? '',
-              category_en: item.category_en ?? '',
+              category_jp: item.category_jp ?? "",
+              category_en: item.category_en ?? "",
               savedPhotos: (item.photos ?? []).map((p) => ({
                 id: p.id,
                 url: p.image_url || p.image,
@@ -285,13 +301,13 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
               pendingFiles: [],
               pendingLabels: [],
               isOpen: false,
-            }))
+            })),
           );
         } else {
           setItems([emptyItem()]);
         }
       } catch {
-        setMenuError('既存のメニューを読み込めませんでした');
+        setMenuError("既存のメニューを読み込めませんでした");
         setItems([emptyItem()]);
       } finally {
         setMenuLoading(false);
@@ -302,7 +318,9 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
 
   const updateItem = (i: number, patch: Partial<MenuItemDraft>) => {
     setMenuSaved(false);
-    setItems((prev) => prev.map((it, k) => (k === i ? { ...it, ...patch } : it)));
+    setItems((prev) =>
+      prev.map((it, k) => (k === i ? { ...it, ...patch } : it)),
+    );
   };
 
   const removeItem = async (i: number) => {
@@ -311,7 +329,7 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
       try {
         await api.deleteMenuItem(item.id);
       } catch {
-        setMenuError('削除に失敗しました');
+        setMenuError("削除に失敗しました");
         return;
       }
     }
@@ -325,7 +343,7 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
         savedPhotos: items[itemIdx].savedPhotos.filter((p) => p.id !== photoId),
       });
     } catch {
-      setMenuError('写真の削除に失敗しました');
+      setMenuError("写真の削除に失敗しました");
     }
   };
 
@@ -335,17 +353,23 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
     try {
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        if (!item.category_jp && !item.category_en && !item.pendingFiles.length && !item.savedPhotos.length) continue; // skip blank rows
+        if (
+          !item.category_jp &&
+          !item.category_en &&
+          !item.pendingFiles.length &&
+          !item.savedPhotos.length
+        )
+          continue; // skip blank rows
 
         if (!item.id) {
           // New item — POST /api/menu-items/ with photos in the same request
           const fd = new FormData();
-          fd.append('business', String(business.id));
-          if (item.category_jp) fd.append('category_jp', item.category_jp);
-          if (item.category_en) fd.append('category_en', item.category_en);
+          fd.append("business", String(business.id));
+          if (item.category_jp) fd.append("category_jp", item.category_jp);
+          if (item.category_en) fd.append("category_en", item.category_en);
           item.pendingFiles.forEach((file, pidx) => {
-            fd.append('photo_images', file);
-            fd.append('photo_labels', item.pendingLabels[pidx] ?? '');
+            fd.append("photo_images", file);
+            fd.append("photo_labels", item.pendingLabels[pidx] ?? "");
           });
 
           const created = await api.createMenuItem(fd);
@@ -368,10 +392,10 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
 
           for (let pidx = 0; pidx < item.pendingFiles.length; pidx++) {
             const pfd = new FormData();
-            pfd.append('menu_item', String(item.id));
-            pfd.append('image', item.pendingFiles[pidx]);
+            pfd.append("menu_item", String(item.id));
+            pfd.append("image", item.pendingFiles[pidx]);
             const label = item.pendingLabels[pidx];
-            if (label) pfd.append('label', label);
+            if (label) pfd.append("label", label);
             const photo = await api.uploadMenuItemPhoto(pfd);
             // update in-flight snapshot safely
             setItems((prev) =>
@@ -388,8 +412,8 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
                           label: photo.label,
                         },
                       ],
-                    }
-              )
+                    },
+              ),
             );
           }
           updateItem(i, { pendingFiles: [], pendingLabels: [] });
@@ -397,7 +421,9 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
       }
       return true;
     } catch (err: any) {
-      setMenuError(err?.response?.data?.message || 'メニューの保存に失敗しました');
+      setMenuError(
+        err?.response?.data?.message || "メニューの保存に失敗しました",
+      );
       return false;
     } finally {
       setSavingMenu(false);
@@ -412,36 +438,55 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isRestaurant && items.some((it) => it.category_jp || it.category_en || it.pendingFiles.length > 0 || it.savedPhotos.length > 0)) {
+    if (
+      isRestaurant &&
+      items.some(
+        (it) =>
+          it.category_jp ||
+          it.category_en ||
+          it.pendingFiles.length > 0 ||
+          it.savedPhotos.length > 0,
+      )
+    ) {
       const ok = await saveMenu();
       if (!ok) return;
     }
-    const data: Partial<BusinessProfile> = { plan: selectedPlan, onboarding_step: 4, is_published: true };
-    if (selectedPlan === 'premium' && customDomain) data.custom_domain = customDomain;
+    const data: Partial<BusinessProfile> = {
+      plan: selectedPlan,
+      onboarding_step: 4,
+      is_published: true,
+    };
+    if (selectedPlan === "premium" && customDomain)
+      data.custom_domain = customDomain;
     await onSubmit(data);
   };
 
   const plans = [
     {
-      name: 'フリー / Free',
-      price: '¥0',
-      period: '/月',
-      features: ['Subdomain (menus.jp)', 'ビジネス情報すべて', '営業時間', 'Powered by menus.jp'],
-      value: 'free' as const,
+      name: "フリー / Free",
+      price: "¥0",
+      period: "/月",
+      features: [
+        "Subdomain (menus.jp)",
+        "ビジネス情報すべて",
+        "営業時間",
+        "Powered by menus.jp",
+      ],
+      value: "free" as const,
       recommended: false,
     },
     {
-      name: 'プレミアム / Premium',
-      price: '¥980',
-      period: '/月',
+      name: "プレミアム / Premium",
+      price: "¥980",
+      period: "/月",
       features: [
-        'Custom domain',
-        'フリーの全機能',
-        'Analytics dashboard',
+        "Custom domain",
+        "フリーの全機能",
+        "Analytics dashboard",
         'No "Powered by" branding',
-        'Priority support',
+        "Priority support",
       ],
-      value: 'premium' as const,
+      value: "premium" as const,
       recommended: true,
     },
   ];
@@ -460,7 +505,9 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-semibold text-gray-900">メニュー / Menu</h3>
+              <h3 className="text-base font-semibold text-gray-900">
+                メニュー / Menu
+              </h3>
               <p className="text-xs text-gray-400 mt-0.5">
                 各アイテムに写真・カテゴリを設定できます
               </p>
@@ -474,9 +521,15 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
               disabled={!!(loading || savingMenu || menuLoading)}
             >
               {savingMenu ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" />保存中...</>
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  保存中...
+                </>
               ) : menuSaved ? (
-                <><Check className="h-3.5 w-3.5 text-green-600" /><span className="text-green-600">保存済み</span></>
+                <>
+                  <Check className="h-3.5 w-3.5 text-green-600" />
+                  <span className="text-green-600">保存済み</span>
+                </>
               ) : (
                 <>保存 / Save</>
               )}
@@ -514,7 +567,9 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
                 className="w-full border-2 border-dashed border-gray-200 rounded-xl p-5 text-center text-gray-400 hover:border-gray-400 hover:text-gray-500 transition-colors flex items-center justify-center gap-2"
               >
                 <Plus className="h-5 w-5" />
-                <span className="text-xs font-bold text-black">メニューアイテムを追加 / Add Menu Item</span>
+                <span className="text-xs font-bold text-black">
+                  メニューアイテムを追加 / Add Menu Item
+                </span>
               </button>
             </div>
           )}
@@ -535,8 +590,8 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
               disabled={loading}
               className={`p-6 rounded-xl border-2 transition-all text-left ${
                 selectedPlan === plan.value
-                  ? 'border-gray-900 bg-white shadow-sm'
-                  : 'border-gray-200 hover:border-gray-400'
+                  ? "border-gray-900 bg-white shadow-sm"
+                  : "border-gray-200 hover:border-gray-400"
               }`}
             >
               {plan.recommended && (
@@ -544,14 +599,23 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
                   Recommended
                 </div>
               )}
-              <h4 className="text-xl font-bold text-gray-900 mb-1">{plan.name}</h4>
+              <h4 className="text-xl font-bold text-gray-900 mb-1">
+                {plan.name}
+              </h4>
               <div className="mb-4">
-                <span className="text-3xl font-bold text-gray-900">{plan.price}</span>
-                <span className="text-gray-500 text-sm ml-1">{plan.period}</span>
+                <span className="text-3xl font-bold text-gray-900">
+                  {plan.price}
+                </span>
+                <span className="text-gray-500 text-sm ml-1">
+                  {plan.period}
+                </span>
               </div>
               <ul className="space-y-2">
                 {plan.features.map((feature, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                  <li
+                    key={idx}
+                    className="text-sm text-gray-700 flex items-start gap-2"
+                  >
                     <Check className="h-4 w-4 mt-0.5 text-gray-900 shrink-0" />
                     <span>{feature}</span>
                   </li>
@@ -562,7 +626,7 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
         </div>
       </div>
 
-      {selectedPlan === 'premium' && (
+      {selectedPlan === "premium" && (
         <div className="space-y-2 p-4 bg-white rounded-xl border border-gray-200">
           <Label className="font-semibold text-gray-900">
             カスタムドメイン / Custom Domain (任意)
@@ -589,14 +653,13 @@ export function Step4Form({ business, onSubmit, loading, error }: Step4FormProps
           {loading || savingMenu ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              {savingMenu ? 'メニュー保存中...' : '公開中...'}
+              {savingMenu ? "メニュー保存中..." : "公開中..."}
             </>
           ) : (
-            '公開する / Publish'
+            "公開する / Publish"
           )}
         </Button>
       </div>
     </form>
   );
 }
-

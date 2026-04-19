@@ -1,30 +1,48 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ProtectedRoute } from '@/components/auth/protected-route';
-import { useBusinessApi } from '@/lib/hooks/useBusinessApi';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Edit2, Plus, Loader2, AlertCircle, Globe, LogOut, MapPin, Phone, ChevronRight, Crown } from 'lucide-react';
-import { BusinessProfile } from '@/lib/types/business';
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { useBusinessApi } from "@/lib/hooks/useBusinessApi";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Edit2,
+  Plus,
+  Loader2,
+  AlertCircle,
+  Globe,
+  LogOut,
+  MapPin,
+  Phone,
+  ChevronRight,
+  Crown,
+} from "lucide-react";
+import { BusinessProfile } from "@/lib/types/business";
 
 // ── Category metadata ────────────────────────────────────────────────────────
 
-const CATEGORY_META: Record<string, { icon: string; labelJp: string; labelEn: string }> = {
-  restaurant: { icon: '🍽️', labelJp: 'レストラン', labelEn: 'Restaurant'  },
-  hair_salon: { icon: '💇', labelJp: '美容院',     labelEn: 'Hair Salon'  },
-  barbershop: { icon: '💈', labelJp: 'バーバー',   labelEn: 'Barbershop'  },
-  spa:        { icon: '🧖', labelJp: 'スパ',       labelEn: 'Spa'         },
-  gym:        { icon: '🏋️', labelJp: 'ジム',       labelEn: 'Gym'         },
+const CATEGORY_META: Record<
+  string,
+  { icon: string; labelJp: string; labelEn: string }
+> = {
+  restaurant: { icon: "🍽️", labelJp: "レストラン", labelEn: "Restaurant" },
+  hair_salon: { icon: "💇", labelJp: "美容院", labelEn: "Hair Salon" },
+  barbershop: { icon: "💈", labelJp: "バーバー", labelEn: "Barbershop" },
+  spa: { icon: "🧖", labelJp: "スパ", labelEn: "Spa" },
+  gym: { icon: "🏋️", labelJp: "ジム", labelEn: "Gym" },
 };
 
 // ── Business card ────────────────────────────────────────────────────────────
 
 function BusinessCard({ business }: { business: BusinessProfile }) {
-  const meta    = CATEGORY_META[business.category] ?? { icon: '📍', labelJp: 'その他', labelEn: 'Other' };
+  const meta = CATEGORY_META[business.category] ?? {
+    icon: "📍",
+    labelJp: "その他",
+    labelEn: "Other",
+  };
   const progress = Math.min((business.onboarding_step / 4) * 100, 100);
   const publicUrl = business.custom_domain
     ? `https://${business.custom_domain}`
@@ -32,7 +50,6 @@ function BusinessCard({ business }: { business: BusinessProfile }) {
 
   return (
     <div className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200">
-
       {/* Hero image / placeholder */}
       <div className="relative h-36 bg-gray-100 overflow-hidden">
         {business.hero_image ? (
@@ -64,7 +81,7 @@ function BusinessCard({ business }: { business: BusinessProfile }) {
         </div>
 
         {/* Plan badge */}
-        {business.plan === 'premium' && (
+        {business.plan === "premium" && (
           <div className="absolute top-3 right-3">
             <span className="inline-flex items-center gap-1 bg-yellow-400 text-yellow-900 text-[11px] font-bold px-2 py-1 rounded-full">
               <Crown className="h-3 w-3" />
@@ -76,7 +93,6 @@ function BusinessCard({ business }: { business: BusinessProfile }) {
 
       {/* Card body */}
       <div className="p-5">
-
         {/* Title row */}
         <div className="flex items-start gap-3 mb-3">
           <span className="text-2xl leading-none mt-0.5">{meta.icon}</span>
@@ -112,12 +128,14 @@ function BusinessCard({ business }: { business: BusinessProfile }) {
             <span className="text-[11px] text-gray-400">
               セットアップ / Setup — {business.onboarding_step}/4
             </span>
-            <span className="text-[11px] font-semibold text-gray-600">{Math.round(progress)}%</span>
+            <span className="text-[11px] font-semibold text-gray-600">
+              {Math.round(progress)}%
+            </span>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-1.5">
             <div
               className={`h-1.5 rounded-full transition-all ${
-                progress >= 100 ? 'bg-emerald-500' : 'bg-gray-800'
+                progress >= 100 ? "bg-emerald-500" : "bg-gray-800"
               }`}
               style={{ width: `${progress}%` }}
             />
@@ -127,9 +145,7 @@ function BusinessCard({ business }: { business: BusinessProfile }) {
         {/* Actions */}
         <div className="flex gap-2">
           <Link href={`/manage/${business.id}`} className="flex-1">
-            <Button
-              className="w-full bg-gray-900 hover:bg-gray-700 text-white font-semibold text-sm h-10 rounded-xl flex items-center justify-center gap-1.5"
-            >
+            <Button className="w-full bg-gray-900 hover:bg-gray-700 text-white font-semibold text-sm h-10 rounded-xl flex items-center justify-center gap-1.5">
               <Edit2 className="h-3.5 w-3.5" />
               編集 / Edit
             </Button>
@@ -174,16 +190,18 @@ function ManageContent() {
 
   const handleLogout = () => {
     logout();
-    router.push('/');
+    router.push("/");
   };
 
   return (
     <div className="min-h-screen bg-stone-50">
-
       {/* ── Navbar ──────────────────────────────────────────────────────── */}
       <nav className="fixed top-0 w-full bg-black z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-bold text-white tracking-tight">
+          <Link
+            href="/"
+            className="text-2xl font-bold text-white tracking-tight"
+          >
             menus.jp
           </Link>
           <div className="flex items-center gap-4">
@@ -196,7 +214,11 @@ function ManageContent() {
               />
             ) : (
               <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white text-sm font-bold">
-                {(user?.first_name?.[0] || user?.username?.[0] || '?').toUpperCase()}
+                {(
+                  user?.first_name?.[0] ||
+                  user?.username?.[0] ||
+                  "?"
+                ).toUpperCase()}
               </div>
             )}
             <span className="text-gray-300 text-sm hidden sm:block">
@@ -215,7 +237,6 @@ function ManageContent() {
 
       {/* ── Page content ────────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
-
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
@@ -228,7 +249,9 @@ function ManageContent() {
             <p className="text-sm text-gray-500 mt-1">
               Manage your businesses
               {!fetchLoading && businesses.length > 0 && (
-                <span className="ml-2 text-gray-400">— {businesses.length}件</span>
+                <span className="ml-2 text-gray-400">
+                  — {businesses.length}件
+                </span>
               )}
             </p>
           </div>
@@ -253,18 +276,21 @@ function ManageContent() {
           <div className="flex items-center justify-center py-24">
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
-
         ) : businesses.length === 0 ? (
           // Empty state
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-6">
               <Globe className="h-9 w-9 text-gray-400" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">まだ店舗がありません</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              まだ店舗がありません
+            </h3>
             <p className="text-gray-500 text-sm mb-8 max-w-xs">
               最初の店舗を登録して、オンラインプレゼンスを始めましょう。
               <br />
-              <span className="text-gray-400">Create your first business to get started.</span>
+              <span className="text-gray-400">
+                Create your first business to get started.
+              </span>
             </p>
             <Link href="/onboarding">
               <Button className="bg-gray-900 hover:bg-gray-700 text-white font-semibold h-12 px-8 rounded-xl flex items-center gap-2">
@@ -274,11 +300,10 @@ function ManageContent() {
               </Button>
             </Link>
           </div>
-
         ) : (
           // Business grid
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {businesses.map(business => (
+            {businesses.map((business) => (
               <BusinessCard key={business.id} business={business} />
             ))}
 
@@ -310,4 +335,3 @@ export default function ManagePage() {
     </ProtectedRoute>
   );
 }
-

@@ -7,17 +7,20 @@ Complete frontend integration for Google OAuth2 authentication in your Next.js c
 This implementation provides a complete, production-ready Google OAuth2 authentication system with the following components:
 
 ### Core Files
+
 - **Auth Provider** (`components/providers/auth-provider.tsx`) - Global authentication state management
 - **API Client** (`lib/api/auth.ts`) - Axios-based API communication with automatic token injection
 - **Auth Hook** (`lib/hooks/useAuth.ts`) - React hook for accessing auth context
 - **Type Definitions** (`lib/types/auth.ts`) - TypeScript interfaces for all auth objects
 
 ### UI Components
+
 - **Login Form** (`components/auth/login-form.tsx`) - Google OAuth signin button
 - **Register Form** (`components/auth/register-form.tsx`) - Google OAuth signup with optional profile fields
 - **Protected Route** (`components/auth/protected-route.tsx`) - Route protection wrapper
 
 ### Pages
+
 - **Login Page** (`app/login/page.tsx`) - Standalone login page
 - **Register Page** (`app/register/page.tsx`) - Standalone signup page
 - **Dashboard Page** (`app/dashboard/page.tsx`) - User profile dashboard (protected)
@@ -130,10 +133,10 @@ Visit `http://localhost:3000` to see the application.
 
 ## 🔑 Environment Variables
 
-| Variable | Type | Required | Description |
-|----------|------|----------|-------------|
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | string | ✅ Yes | Google OAuth Client ID from Google Cloud Console |
-| `NEXT_PUBLIC_API_BASE_URL` | string | ✅ Yes | Backend API base URL (e.g., `http://localhost:8005/api`) |
+| Variable                       | Type   | Required | Description                                              |
+| ------------------------------ | ------ | -------- | -------------------------------------------------------- |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | string | ✅ Yes   | Google OAuth Client ID from Google Cloud Console         |
+| `NEXT_PUBLIC_API_BASE_URL`     | string | ✅ Yes   | Backend API base URL (e.g., `http://localhost:8005/api`) |
 
 ## 🛠️ Usage Examples
 
@@ -183,14 +186,14 @@ export default function MyPage() {
 ### Making Authenticated API Calls
 
 ```typescript
-import apiClient from '@/lib/api/auth';
+import apiClient from "@/lib/api/auth";
 
 async function fetchUserData() {
   try {
-    const response = await apiClient.get('/api/users/profile/');
+    const response = await apiClient.get("/api/users/profile/");
     console.log(response.data);
   } catch (error) {
-    console.error('Failed to fetch profile:', error);
+    console.error("Failed to fetch profile:", error);
   }
 }
 ```
@@ -208,6 +211,7 @@ Wraps the application and provides auth context.
 ```
 
 **Context Value:**
+
 - `user: User | null` - Current authenticated user
 - `token: string | null` - API authentication token
 - `sessionId: string | null` - Session identifier
@@ -223,6 +227,7 @@ Wraps the application and provides auth context.
 Google OAuth login component.
 
 **Features:**
+
 - Google sign-in button
 - Error display
 - Auto-redirect on success
@@ -233,6 +238,7 @@ Google OAuth login component.
 Google OAuth registration component.
 
 **Features:**
+
 - Google sign-in button
 - Optional profile fields (first/last name, phone)
 - Two-step flow: authenticate then optionally add profile info
@@ -244,6 +250,7 @@ Google OAuth registration component.
 Route protection wrapper.
 
 **Usage:**
+
 ```typescript
 <ProtectedRoute>
   <ProtectedContent />
@@ -251,6 +258,7 @@ Route protection wrapper.
 ```
 
 **Behavior:**
+
 - Shows loading spinner while auth state initializes
 - Redirects to `/login` if user is not authenticated
 - Renders children if authenticated
@@ -288,17 +296,19 @@ User
 ## 📝 API Response Types
 
 ### LoginResponse
+
 ```typescript
 {
-  user: User;           // User profile
-  token: string;        // API auth token
-  created: boolean;     // false = existing user
+  user: User; // User profile
+  token: string; // API auth token
+  created: boolean; // false = existing user
   redirect_url: string; // URL to redirect to
-  session_id: string;   // Session identifier
+  session_id: string; // Session identifier
 }
 ```
 
 ### RegisterResponse
+
 ```typescript
 {
   user: User;           // New user profile
@@ -315,13 +325,14 @@ All errors follow a consistent format:
 
 ```typescript
 {
-  error: "ERROR_CODE";      // Machine-readable error code
+  error: "ERROR_CODE"; // Machine-readable error code
   message: "Error message"; // User-friendly message
   details: "Additional..."; // Debug information
 }
 ```
 
 Common errors:
+
 - `INVALID_TOKEN` - Token verification failed
 - `TOKEN_EXPIRED` - Token has expired
 - `USERNAME_TAKEN` - Username already exists
@@ -331,6 +342,7 @@ Common errors:
 ## 🔒 Security Considerations
 
 ### Current Implementation
+
 - ✅ HTTPS-ready
 - ✅ Token stored in localStorage
 - ✅ Automatic token injection
@@ -340,6 +352,7 @@ Common errors:
 ### Production Recommendations
 
 1. **Use httpOnly Cookies** instead of localStorage
+
    ```typescript
    // Backend should set:
    // Set-Cookie: token=value; HttpOnly; Secure; SameSite=Strict
@@ -363,18 +376,23 @@ Common errors:
 ## 🐛 Troubleshooting
 
 ### "Google OAuth Client ID is not set"
+
 Check `.env.local` has `NEXT_PUBLIC_GOOGLE_CLIENT_ID` set correctly.
 
 ### "401 Unauthorized" errors
+
 Token may have expired. Try logging out and logging back in.
 
 ### CORS errors
+
 Check backend CORS configuration includes `http://localhost:3000` (development) or your production domain.
 
 ### "Failed to get user info from Google"
+
 Verify Google OAuth credentials are correct and Google Identity API is enabled.
 
 ### Google sign-in button not appearing
+
 Check that `GoogleOAuthProvider` wraps your app in `app/layout.tsx`.
 
 ## 📚 Additional Resources
@@ -420,6 +438,7 @@ app/
 ## 🤝 Support
 
 For issues or questions:
+
 1. Check the troubleshooting section
 2. Review the [API Documentation](../GOOGLE_OAUTH_DOCS.md)
 3. Check browser console for specific error messages

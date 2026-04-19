@@ -4,7 +4,19 @@
 
 /* Apply Poppins font globally */
 * {
-  font-family: var(--font-poppins, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif);
+  font-family: var(
+    --font-poppins,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    "Noto Sans",
+    sans-serif
+  );
 }
 
 @custom-variant dark (&:is(.dark *));
@@ -12,40 +24,40 @@
 /* Brand Colors */
 :root {
   /* Primary Colors */
-  --primary-dark: #15803D;
-  --primary-light: #16A34A;
-  --primary-lighter: #22C55E;
-  
+  --primary-dark: #15803d;
+  --primary-light: #16a34a;
+  --primary-lighter: #22c55e;
+
   /* Accent Colors */
-  --accent-gold: #F59E0B;
-  --accent-yellow: #FBBF24;
-  
+  --accent-gold: #f59e0b;
+  --accent-yellow: #fbbf24;
+
   /* Text Colors */
   --text-dark: #111111;
-  --text-secondary: #6B7280;
-  --text-tertiary: #9CA3AF;
-  
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+
   /* Background & Border */
-  --bg-light: #F9FAFB;
-  --bg-lighter: #F3F4F6;
-  --border-color: #E5E7EB;
-  --border-light: #F3F4F6;
-  
+  --bg-light: #f9fafb;
+  --bg-lighter: #f3f4f6;
+  --border-color: #e5e7eb;
+  --border-light: #f3f4f6;
+
   /* Utility Colors */
-  --white: #FFFFFF;
-  --blue-primary: #2563EB;
-  --blue-secondary: #3B82F6;
-  --red-error: #EF4444;
-  --red-dark: #DC2626;
-  
+  --white: #ffffff;
+  --blue-primary: #2563eb;
+  --blue-secondary: #3b82f6;
+  --red-error: #ef4444;
+  --red-dark: #dc2626;
+
   /* Dark Greens */
-  --green-dark-1: #15803D;
+  --green-dark-1: #15803d;
   --green-dark-2: #166534;
-  --green-dark-3: #15803D;
-  
+  --green-dark-3: #15803d;
+
   /* Grays */
   --gray-dark: #111111;
-  --gray-light: #F9FAFB;
+  --gray-light: #f9fafb;
 }
 
 @theme inline {
@@ -167,7 +179,7 @@
 }
 
 [role="switch"][aria-checked="true"] {
-  background-color: #15803D !important;
+  background-color: #15803d !important;
 }
 
 [role="switch"][aria-checked="false"] {

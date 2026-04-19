@@ -1,8 +1,14 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { RegisterForm } from '@/components/auth/register-form';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React from "react";
+import { RegisterForm } from "@/components/auth/register-form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function RegisterPage() {
   return (
@@ -11,7 +17,9 @@ export default function RegisterPage() {
         <Card className="shadow-lg">
           <CardHeader className="space-y-2">
             <CardTitle className="text-3xl font-bold">Create Account</CardTitle>
-            <CardDescription>Join menus.jp and start your business today</CardDescription>
+            <CardDescription>
+              Join menus.jp and start your business today
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <RegisterForm />

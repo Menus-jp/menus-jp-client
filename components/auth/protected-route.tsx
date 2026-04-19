@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { Loader2 } from 'lucide-react';
+import React, { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -23,7 +23,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!user) {
     // Redirect to login if not authenticated
-    router.push('/login');
+    router.push("/login");
     return null;
   }
 
