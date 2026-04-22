@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { BusinessProfile } from "@/lib/types/business";
 
-// ── Category metadata ────────────────────────────────────────────────────────
 
 const CATEGORY_META: Record<
   string,
@@ -35,7 +34,6 @@ const CATEGORY_META: Record<
   gym: { icon: "🏋️", labelJp: "ジム", labelEn: "Gym" },
 };
 
-// ── Business card ────────────────────────────────────────────────────────────
 
 function BusinessCard({ business }: { business: BusinessProfile }) {
   const meta = CATEGORY_META[business.category] ?? {
@@ -44,9 +42,6 @@ function BusinessCard({ business }: { business: BusinessProfile }) {
     labelEn: "Other",
   };
   const progress = Math.min((business.onboarding_step / 4) * 100, 100);
-  const publicUrl = business.custom_domain
-    ? `https://${business.custom_domain}`
-    : `https://${business.slug}.menus.jp`;
 
   return (
     <div className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200">
@@ -150,23 +145,19 @@ function BusinessCard({ business }: { business: BusinessProfile }) {
               編集 / Edit
             </Button>
           </Link>
-          {business.is_published && (
-            <a href={publicUrl} target="_blank" rel="noopener noreferrer">
-              <Button
-                variant="outline"
-                className="h-10 w-10 rounded-xl border-gray-200 hover:border-gray-400 p-0 flex items-center justify-center"
-              >
-                <Globe className="h-4 w-4 text-gray-600" />
-              </Button>
-            </a>
-          )}
+          <Link href={`/${business.slug}`}>
+            <Button
+              variant="outline"
+              className="h-10 w-10 rounded-xl border-gray-200 hover:border-gray-400 p-0 flex items-center justify-center"
+            >
+              <Globe className="h-4 w-4 text-gray-600" />
+            </Button>
+          </Link>
         </div>
       </div>
     </div>
   );
 }
-
-// ── Main content ────────────────────────────────────────────────────────────
 
 function ManageContent() {
   const router = useRouter();
@@ -195,7 +186,6 @@ function ManageContent() {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      {/* ── Navbar ──────────────────────────────────────────────────────── */}
       <nav className="fixed top-0 w-full bg-black z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <Link
@@ -235,9 +225,7 @@ function ManageContent() {
         </div>
       </nav>
 
-      {/* ── Page content ────────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
-        {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">
@@ -325,8 +313,6 @@ function ManageContent() {
     </div>
   );
 }
-
-// ── Page export ──────────────────────────────────────────────────────────────
 
 export default function ManagePage() {
   return (

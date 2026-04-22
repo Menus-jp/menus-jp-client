@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import apiClient from "@/lib/api/auth";
+import { timeToISODatetime } from "@/lib/utils";
 import {
   BusinessProfile,
   BusinessHours,
@@ -10,6 +11,7 @@ import {
   MenuCategory,
   MenuItem,
   MenuItemPhoto,
+  MenuItemHours,
   ServiceItem,
   BookingLink,
   SocialLink,
@@ -297,9 +299,9 @@ export function useBusinessApi() {
         if (data.discount_percentage !== undefined)
           fd.append("discount_percentage", data.discount_percentage ?? "");
         if (data.discount_start_time !== undefined)
-          fd.append("discount_start_time", data.discount_start_time ?? "");
+          fd.append("discount_start_time", timeToISODatetime(data.discount_start_time) ?? "");
         if (data.discount_end_time !== undefined)
-          fd.append("discount_end_time", data.discount_end_time ?? "");
+          fd.append("discount_end_time", timeToISODatetime(data.discount_end_time) ?? "");
         const res = await apiClient.patch(`/menu-items/${id}/`, fd, {
           headers: { "Content-Type": undefined },
         });
@@ -348,6 +350,65 @@ export function useBusinessApi() {
       await apiClient.delete(`/menu-item-photos/${id}/`);
     } catch (err: any) {
       setError(extractError(err, "Failed to delete menu item photo"));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // ── Menu Item Hours ──────────────────────────────────────────────────────────
+  const bulkCreateMenuItemHours = useCallback(
+    async (
+      menuItemId: number,
+      hours: Array<{
+        day_of_week: string;
+        is_closed: boolean;
+        closed_reason?: string;
+        start_time?: string;
+        end_time?: string;
+      }>,
+    ) => {
+      try {
+        setLoading(true);
+        const res = await apiClient.post("/menu-item-hours/bulk_create/", {
+          menu_item: menuItemId,
+          hours,
+        });
+        return res.data;
+      } catch (err: any) {
+        setError(extractError(err, "Failed to create menu item hours"));
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const bulkUpdateMenuItemHours = useCallback(
+    async (hours: Array<Partial<MenuItemHours> & { id: number }>) => {
+      try {
+        setLoading(true);
+        const res = await apiClient.patch("/menu-item-hours/bulk_update/", {
+          hours,
+        });
+        return res.data;
+      } catch (err: any) {
+        setError(extractError(err, "Failed to update menu item hours"));
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const deleteMenuItemHours = useCallback(async (id: number) => {
+    try {
+      setLoading(true);
+      await apiClient.delete(`/menu-item-hours/${id}/`);
+    } catch (err: any) {
+      setError(extractError(err, "Failed to delete menu item hours"));
       throw err;
     } finally {
       setLoading(false);
@@ -603,6 +664,10 @@ export function useBusinessApi() {
     // Menu Item Photos
     uploadMenuItemPhoto,
     deleteMenuItemPhoto,
+    // Menu Item Hours
+    bulkCreateMenuItemHours,
+    bulkUpdateMenuItemHours,
+    deleteMenuItemHours,
     // Service Items
     listServiceItems,
     createServiceItem,

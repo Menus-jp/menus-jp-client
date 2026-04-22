@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { timeToISODatetime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertCircle,
   Loader2,
@@ -12,9 +14,40 @@ import {
   Plus,
   Trash2,
   ImagePlus,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Tag,
+  Percent,
+  Image as ImageIcon,
+  UtensilsCrossed,
 } from "lucide-react";
-import { BusinessProfile, MenuItem } from "@/lib/types/business";
+import {
+  BusinessProfile,
+  MenuItem,
+  MenuItemHours,
+} from "@/lib/types/business";
 import { useBusinessApi } from "@/lib/hooks/useBusinessApi";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type DayOfWeek =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+
+interface HoursDraft {
+  id?: number;
+  day_of_week: DayOfWeek;
+  is_closed: boolean;
+  closed_reason: string;
+  start_time: string; // HH:MM
+  end_time: string;   // HH:MM
+}
 
 interface Step4FormProps {
   business: BusinessProfile;
@@ -22,6 +55,7 @@ interface Step4FormProps {
   onPublish?: () => Promise<void>;
   loading?: boolean;
   error?: string | null;
+  isNew?: boolean;
 }
 
 interface MenuItemDraft {
@@ -30,15 +64,71 @@ interface MenuItemDraft {
   category_jp: string;
   category_en: string;
   discount_percentage: string;
-  discount_start_time: string;
-  discount_end_time: string;
-  /** Photos already on the server */
-  savedPhotos: { id: number; url: string; label?: string }[];
-  /** Files staged for upload on save */
-  pendingFiles: File[];
-  /** One label per pending file (may be shorter than pendingFiles — remainder = null) */
-  pendingLabels: string[];
+  discount_start_time: string; // HH:MM (time only)
+  discount_end_time: string;   // HH:MM (time only)
+  /** JP photos already on the server */
+  savedPhotosJp: { id: number; url: string; label?: string }[];
+  pendingFilesJp: File[];
+  pendingLabelsJp: string[];
+  /** EN photos already on the server */
+  savedPhotosEn: { id: number; url: string; label?: string }[];
+  pendingFilesEn: File[];
+  pendingLabelsEn: string[];
+  hours: HoursDraft[];
   isOpen: boolean;
+  showHours: boolean;
+}
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+
+const DAYS: DayOfWeek[] = [
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+];
+
+const DAY_LABELS: Record<DayOfWeek, { jp: string; en: string }> = {
+  monday:    { jp: "月", en: "Mon" },
+  tuesday:   { jp: "火", en: "Tue" },
+  wednesday: { jp: "水", en: "Wed" },
+  thursday:  { jp: "木", en: "Thu" },
+  friday:    { jp: "金", en: "Fri" },
+  saturday:  { jp: "土", en: "Sat" },
+  sunday:    { jp: "日", en: "Sun" },
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function defaultHours(): HoursDraft[] {
+  return DAYS.map((day) => ({
+    day_of_week: day,
+    is_closed: false,
+    closed_reason: "",
+    start_time: "11:00",
+    end_time: "21:00",
+  }));
+}
+
+function mergeHoursWithDefaults(serverHours: MenuItemHours[]): HoursDraft[] {
+  const byDay = new Map(serverHours.map((h) => [h.day_of_week, h]));
+  return DAYS.map((day) => {
+    const h = byDay.get(day);
+    if (h) {
+      return {
+        id: h.id,
+        day_of_week: day,
+        is_closed: h.is_closed,
+        closed_reason: h.closed_reason ?? "",
+        start_time: h.start_time ? h.start_time.slice(0, 5) : "11:00",
+        end_time: h.end_time ? h.end_time.slice(0, 5) : "21:00",
+      };
+    }
+    return {
+      day_of_week: day,
+      is_closed: false,
+      closed_reason: "",
+      start_time: "11:00",
+      end_time: "21:00",
+    };
+  });
 }
 
 function emptyItem(): MenuItemDraft {
@@ -48,10 +138,15 @@ function emptyItem(): MenuItemDraft {
     discount_percentage: "",
     discount_start_time: "",
     discount_end_time: "",
-    savedPhotos: [],
-    pendingFiles: [],
-    pendingLabels: [],
+    savedPhotosJp: [],
+    pendingFilesJp: [],
+    pendingLabelsJp: [],
+    savedPhotosEn: [],
+    pendingFilesEn: [],
+    pendingLabelsEn: [],
+    hours: defaultHours(),
     isOpen: true,
+    showHours: false,
   };
 }
 
@@ -74,15 +169,15 @@ function PhotoThumb({
       <img
         src={src}
         alt={label || ""}
-        className={`w-20 h-20 object-cover rounded-lg border ${
+        className={`w-20 h-20 object-cover rounded-xl border ${
           pending
             ? "border-dashed border-blue-300 opacity-70"
             : "border-gray-200"
         }`}
       />
       {pending && (
-        <span className="absolute top-0.5 right-0.5 bg-blue-500 text-white text-[9px] px-1 rounded leading-tight">
-          未保存
+        <span className="absolute top-1 right-1 bg-blue-500 text-white text-[9px] px-1 rounded leading-tight font-bold">
+          NEW
         </span>
       )}
       {onRemove && (
@@ -90,7 +185,7 @@ function PhotoThumb({
           type="button"
           onClick={onRemove}
           disabled={disabled}
-          className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          className="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
         >
           <Trash2 className="h-4 w-4 text-white" />
         </button>
@@ -99,13 +194,104 @@ function PhotoThumb({
   );
 }
 
+// ── HoursEditor ────────────────────────────────────────────────────────────────
+
+function HoursEditor({
+  hours,
+  disabled,
+  onChange,
+}: {
+  hours: HoursDraft[];
+  disabled: boolean;
+  onChange: (hours: HoursDraft[]) => void;
+}) {
+  const updateHour = (idx: number, patch: Partial<HoursDraft>) => {
+    onChange(hours.map((h, i) => (i === idx ? { ...h, ...patch } : h)));
+  };
+
+  return (
+    <div className="divide-y divide-gray-50">
+      {hours.map((h, idx) => {
+        const dayLabel = DAY_LABELS[h.day_of_week];
+        const isSat = h.day_of_week === "saturday";
+        const isSun = h.day_of_week === "sunday";
+        return (
+          <div
+            key={h.day_of_week}
+            className={`flex items-center gap-3 px-4 py-2.5 ${
+              h.is_closed ? "bg-gray-50/60" : "bg-white"
+            }`}
+          >
+            {/* Day label */}
+            <div className="w-10 shrink-0 text-center">
+              <span
+                className={`text-sm font-bold leading-none block ${
+                  isSat ? "text-blue-600" : isSun ? "text-red-500" : "text-gray-700"
+                }`}
+              >
+                {dayLabel.jp}
+              </span>
+              <span className="text-[10px] text-gray-400 leading-none mt-0.5 block">
+                {dayLabel.en}
+              </span>
+            </div>
+
+            {/* Toggle */}
+            <Switch
+              checked={!h.is_closed}
+              onCheckedChange={(open) => updateHour(idx, { is_closed: !open })}
+              disabled={disabled}
+              className="data-[state=checked]:bg-emerald-500 shrink-0"
+            />
+
+            {/* Time range or closed */}
+            {h.is_closed ? (
+              <div className="flex-1 flex items-center gap-2">
+                <span className="text-xs text-gray-400 shrink-0">定休日</span>
+                <Input
+                  type="text"
+                  placeholder="理由 (任意) e.g. 祝日"
+                  value={h.closed_reason}
+                  onChange={(e) => updateHour(idx, { closed_reason: e.target.value })}
+                  disabled={disabled}
+                  className="flex-1 h-7 text-xs border-dashed border-gray-200 bg-transparent placeholder:text-gray-300"
+                />
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center gap-2">
+                <Input
+                  type="time"
+                  value={h.start_time}
+                  onChange={(e) => updateHour(idx, { start_time: e.target.value })}
+                  disabled={disabled}
+                  className="w-[6.5rem] h-7 text-xs text-center tabular-nums"
+                />
+                <span className="text-gray-300 text-sm select-none">–</span>
+                <Input
+                  type="time"
+                  value={h.end_time}
+                  onChange={(e) => updateHour(idx, { end_time: e.target.value })}
+                  disabled={disabled}
+                  className="w-[6.5rem] h-7 text-xs text-center tabular-nums"
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── MenuItemCard ───────────────────────────────────────────────────────────────
+
 interface MenuItemCardProps {
   item: MenuItemDraft;
   index: number;
   disabled: boolean;
   onUpdate: (patch: Partial<MenuItemDraft>) => void;
   onRemove: () => void;
-  onRemoveSavedPhoto: (id: number) => void;
+  onRemoveSavedPhoto: (id: number, lang: "jp" | "en") => void;
 }
 
 function MenuItemCard({
@@ -116,99 +302,287 @@ function MenuItemCard({
   onRemove,
   onRemoveSavedPhoto,
 }: MenuItemCardProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRefJp = useRef<HTMLInputElement>(null);
+  const fileInputRefEn = useRef<HTMLInputElement>(null);
 
-  const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilePickJp = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
-    const maxNew = 5 - item.savedPhotos.length - item.pendingFiles.length;
-    const toAdd = files.slice(0, maxNew);
+    const toAdd = files.slice(0, 20 - (item.savedPhotosJp.length + item.pendingFilesJp.length));
     onUpdate({
-      pendingFiles: [...item.pendingFiles, ...toAdd],
-      pendingLabels: [...item.pendingLabels, ...toAdd.map(() => "")],
+      pendingFilesJp: [...item.pendingFilesJp, ...toAdd],
+      pendingLabelsJp: [...item.pendingLabelsJp, ...toAdd.map(() => "")],
     });
     e.target.value = "";
   };
 
-  const removePending = (idx: number) => {
+  const handleFilePickEn = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const toAdd = files.slice(0, 20 - (item.savedPhotosEn.length + item.pendingFilesEn.length));
     onUpdate({
-      pendingFiles: item.pendingFiles.filter((_, i) => i !== idx),
-      pendingLabels: item.pendingLabels.filter((_, i) => i !== idx),
+      pendingFilesEn: [...item.pendingFilesEn, ...toAdd],
+      pendingLabelsEn: [...item.pendingLabelsEn, ...toAdd.map(() => "")],
+    });
+    e.target.value = "";
+  };
+
+  const removePendingJp = (idx: number) => {
+    onUpdate({
+      pendingFilesJp: item.pendingFilesJp.filter((_, i) => i !== idx),
+      pendingLabelsJp: item.pendingLabelsJp.filter((_, i) => i !== idx),
     });
   };
 
-  const updatePendingLabel = (idx: number, label: string) => {
-    const labels = [...item.pendingLabels];
-    labels[idx] = label;
-    onUpdate({ pendingLabels: labels });
+  const removePendingEn = (idx: number) => {
+    onUpdate({
+      pendingFilesEn: item.pendingFilesEn.filter((_, i) => i !== idx),
+      pendingLabelsEn: item.pendingLabelsEn.filter((_, i) => i !== idx),
+    });
   };
 
-  const totalPhotos = item.savedPhotos.length + item.pendingFiles.length;
+  const updatePendingLabelJp = (idx: number, label: string) => {
+    const labels = [...item.pendingLabelsJp];
+    labels[idx] = label;
+    onUpdate({ pendingLabelsJp: labels });
+  };
+
+  const updatePendingLabelEn = (idx: number, label: string) => {
+    const labels = [...item.pendingLabelsEn];
+    labels[idx] = label;
+    onUpdate({ pendingLabelsEn: labels });
+  };
+
+  const totalPhotosJp = item.savedPhotosJp.length + item.pendingFilesJp.length;
+  const totalPhotosEn = item.savedPhotosEn.length + item.pendingFilesEn.length;
+  const totalPhotos   = totalPhotosJp + totalPhotosEn;
+  const openDays = item.hours.filter((h) => !h.is_closed).length;
+  const title = item.category_jp || item.category_en || `メニュー ${index + 1}`;
+  const hasDiscount = !!item.discount_percentage;
 
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-2 bg-gray-50 px-4 py-3 border-b border-gray-200">
-        <button
-          type="button"
-          className="flex-1 flex items-center gap-2 text-left min-w-0"
-          onClick={() => onUpdate({ isOpen: !item.isOpen })}
-        >
-          <span className="text-sm font-semibold text-gray-900 truncate">
-            {item.category_jp ||
-              item.category_en ||
-              `メニューアイテム ${index + 1}`}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={disabled}
-          className="text-gray-300 hover:text-red-500 transition-colors p-1 shrink-0"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      {/* ── Card Header ── */}
+      <div
+        className="flex items-center gap-3 px-5 py-4 cursor-pointer select-none"
+        onClick={() => onUpdate({ isOpen: !item.isOpen })}
+      >
+        <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+          <UtensilsCrossed className="h-4 w-4 text-orange-500" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-gray-900 truncate">{title}</span>
+            {item.category_en && item.category_jp && (
+              <span className="text-xs text-gray-400 truncate hidden sm:inline">
+                / {item.category_en}
+              </span>
+            )}
+            {hasDiscount && (
+              <span className="inline-flex items-center gap-0.5 bg-orange-100 text-orange-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                <Percent className="h-2.5 w-2.5" />
+                {item.discount_percentage}% OFF
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-0.5">
+            <span className="text-[11px] text-gray-400 flex items-center gap-1">
+              <ImageIcon className="h-3 w-3" />
+              {totalPhotos} photo{totalPhotos !== 1 ? "s" : ""}
+            </span>
+            <span className="text-[11px] text-gray-400 flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {openDays}/7 days
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            disabled={disabled}
+            className="p-1.5 text-gray-300 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+          {item.isOpen ? (
+            <ChevronUp className="h-4 w-4 text-gray-400 ml-1" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-gray-400 ml-1" />
+          )}
+        </div>
       </div>
 
+      {/* ── Card Body ── */}
       {item.isOpen && (
-        <div className="p-4 space-y-4">
-          {/* Category row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs text-gray-500 mb-1 block">
-                カテゴリ (JP)
-              </Label>
+        <div className="border-t border-gray-100 divide-y divide-gray-100">
+
+          {/* Category + Photos */}
+          <div className="px-5 py-4">
+            <div className="flex items-center gap-1.5 mb-4">
+              <Tag className="h-3.5 w-3.5 text-gray-400" />
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                Category
+              </span>
+            </div>
+
+            {/* ── JP block ── */}
+            <div className="space-y-2">
+              <Label className="text-[11px] text-gray-400 block">カテゴリ名 (JP)</Label>
               <Input
                 placeholder="例: ランチ / 寿司"
                 value={item.category_jp}
                 onChange={(e) => onUpdate({ category_jp: e.target.value })}
                 disabled={disabled}
-                className="text-sm h-9"
+                className="h-9 text-sm rounded-lg"
               />
+              <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <ImageIcon className="h-3 w-3 text-gray-400" />
+                  <span className="text-[11px] font-semibold text-gray-500">メニュー写真 (JP)</span>
+                  <span className="text-[11px] text-gray-400 ml-auto">{totalPhotosJp}/20</span>
+                </div>
+                {totalPhotosJp > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {item.savedPhotosJp.map((p) => (
+                      <PhotoThumb
+                        key={p.id}
+                        src={p.url}
+                        label={p.label}
+                        onRemove={() => onRemoveSavedPhoto(p.id, "jp")}
+                        disabled={disabled}
+                      />
+                    ))}
+                    {item.pendingFilesJp.map((file, pidx) => (
+                      <div key={`pjp-${pidx}`} className="flex flex-col gap-1">
+                        <PhotoThumb
+                          src={URL.createObjectURL(file)}
+                          pending
+                          onRemove={() => removePendingJp(pidx)}
+                          disabled={disabled}
+                        />
+                        <Input
+                          placeholder="ラベル"
+                          value={item.pendingLabelsJp[pidx] ?? ""}
+                          onChange={(e) => updatePendingLabelJp(pidx, e.target.value)}
+                          disabled={disabled}
+                          className="text-[11px] h-6 w-20 px-1.5 rounded-md"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {totalPhotosJp < 20 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 rounded-lg h-7 bg-white text-[11px]"
+                    onClick={() => fileInputRefJp.current?.click()}
+                    disabled={disabled}
+                  >
+                    <ImagePlus className="h-3 w-3" />
+                    写真を追加
+                  </Button>
+                )}
+                <input
+                  ref={fileInputRefJp}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFilePickJp}
+                />
+              </div>
             </div>
-            <div>
-              <Label className="text-xs text-gray-500 mb-1 block">
-                Category (EN)
-              </Label>
+
+            <div className="my-4 border-t border-gray-100" />
+
+            {/* ── EN block ── */}
+            <div className="space-y-2">
+              <Label className="text-[11px] text-gray-400 block">Category Name (EN)</Label>
               <Input
                 placeholder="e.g. Lunch / Sushi"
                 value={item.category_en}
                 onChange={(e) => onUpdate({ category_en: e.target.value })}
                 disabled={disabled}
-                className="text-sm h-9"
+                className="h-9 text-sm rounded-lg"
               />
+              <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <ImageIcon className="h-3 w-3 text-gray-400" />
+                  <span className="text-[11px] font-semibold text-gray-500">Menu Photos (EN)</span>
+                  <span className="text-[11px] text-gray-400 ml-auto">{totalPhotosEn}/20</span>
+                </div>
+                {totalPhotosEn > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {item.savedPhotosEn.map((p) => (
+                      <PhotoThumb
+                        key={p.id}
+                        src={p.url}
+                        label={p.label}
+                        onRemove={() => onRemoveSavedPhoto(p.id, "en")}
+                        disabled={disabled}
+                      />
+                    ))}
+                    {item.pendingFilesEn.map((file, pidx) => (
+                      <div key={`pen-${pidx}`} className="flex flex-col gap-1">
+                        <PhotoThumb
+                          src={URL.createObjectURL(file)}
+                          pending
+                          onRemove={() => removePendingEn(pidx)}
+                          disabled={disabled}
+                        />
+                        <Input
+                          placeholder="label"
+                          value={item.pendingLabelsEn[pidx] ?? ""}
+                          onChange={(e) => updatePendingLabelEn(pidx, e.target.value)}
+                          disabled={disabled}
+                          className="text-[11px] h-6 w-20 px-1.5 rounded-md"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {totalPhotosEn < 20 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 rounded-lg h-7 bg-white text-[11px]"
+                    onClick={() => fileInputRefEn.current?.click()}
+                    disabled={disabled}
+                  >
+                    <ImagePlus className="h-3 w-3" />
+                    Add Photo
+                  </Button>
+                )}
+                <input
+                  ref={fileInputRefEn}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFilePickEn}
+                />
+              </div>
             </div>
           </div>
 
           {/* Discount */}
-          <div className="space-y-2">
-            <Label className="text-xs text-gray-500 block">
-              割引 / Discount{" "}
-              <span className="text-gray-400">(任意)</span>
-            </Label>
+          <div className="px-5 py-4">
+            <div className="flex items-center gap-1.5 mb-3">
+              <Percent className="h-3.5 w-3.5 text-gray-400" />
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                Discount
+              </span>
+              <span className="text-[11px] text-gray-400 ml-0.5">(任意 / optional)</span>
+            </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label className="text-[11px] text-gray-400 mb-1 block">割引率 (%)</Label>
+                <Label className="text-[11px] text-gray-400 mb-1.5 block">割引率 (%)</Label>
                 <Input
                   type="number"
                   min="0"
@@ -218,89 +592,97 @@ function MenuItemCard({
                   value={item.discount_percentage}
                   onChange={(e) => onUpdate({ discount_percentage: e.target.value })}
                   disabled={disabled}
-                  className="text-sm h-9"
+                  className="h-9 text-sm rounded-lg"
                 />
               </div>
               <div>
-                <Label className="text-[11px] text-gray-400 mb-1 block">開始日時</Label>
+                <Label className="text-[11px] text-gray-400 mb-1.5 block">開始時間</Label>
                 <Input
-                  type="datetime-local"
+                  type="time"
                   value={item.discount_start_time}
                   onChange={(e) => onUpdate({ discount_start_time: e.target.value })}
                   disabled={disabled}
-                  className="text-sm h-9"
+                  className="h-9 text-sm rounded-lg tabular-nums"
                 />
               </div>
               <div>
-                <Label className="text-[11px] text-gray-400 mb-1 block">終了日時</Label>
+                <Label className="text-[11px] text-gray-400 mb-1.5 block">終了時間</Label>
                 <Input
-                  type="datetime-local"
+                  type="time"
                   value={item.discount_end_time}
                   onChange={(e) => onUpdate({ discount_end_time: e.target.value })}
                   disabled={disabled}
-                  className="text-sm h-9"
+                  className="h-9 text-sm rounded-lg tabular-nums"
                 />
               </div>
             </div>
           </div>
 
-          {/* Photos */}
-          <div>
-            <Label className="text-xs text-gray-500 mb-2 block">
-              写真 / Photos{" "}
-              <span className="text-gray-400">({totalPhotos}/5)</span>
-            </Label>
-            {totalPhotos > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {item.savedPhotos.map((p) => (
-                  <PhotoThumb
-                    key={p.id}
-                    src={p.url}
-                    label={p.label}
-                    onRemove={() => onRemoveSavedPhoto(p.id)}
+          {/* Hours */}
+          <div className="px-5 py-4">
+            <button
+              type="button"
+              onClick={() => onUpdate({ showHours: !item.showHours })}
+              className="w-full flex items-center justify-between"
+            >
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-gray-400" />
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                  Available Hours
+                </span>
+                <span
+                  className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ml-0.5 ${
+                    openDays === 7
+                      ? "bg-emerald-100 text-emerald-600"
+                      : openDays === 0
+                      ? "bg-red-100 text-red-500"
+                      : "bg-blue-100 text-blue-600"
+                  }`}
+                >
+                  {openDays}/7 open
+                </span>
+              </div>
+              {item.showHours ? (
+                <ChevronUp className="h-4 w-4 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              )}
+            </button>
+
+            {item.showHours && (
+              <div className="mt-3 border border-gray-100 rounded-xl overflow-hidden">
+                {/* Quick-set bar */}
+                <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
+                  <span className="text-[11px] text-gray-500 font-medium mr-1">Quick set:</span>
+                  <button
+                    type="button"
                     disabled={disabled}
-                  />
-                ))}
-                {item.pendingFiles.map((file, pidx) => (
-                  <div key={`p-${pidx}`} className="flex flex-col gap-1">
-                    <PhotoThumb
-                      src={URL.createObjectURL(file)}
-                      pending
-                      onRemove={() => removePending(pidx)}
-                      disabled={disabled}
-                    />
-                    <Input
-                      placeholder="ラベル"
-                      value={item.pendingLabels[pidx] ?? ""}
-                      onChange={(e) => updatePendingLabel(pidx, e.target.value)}
-                      disabled={disabled}
-                      className="text-[11px] h-6 w-20 px-1.5"
-                    />
-                  </div>
-                ))}
+                    onClick={() =>
+                      onUpdate({ hours: item.hours.map((h) => ({ ...h, is_closed: false })) })
+                    }
+                    className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold transition-colors disabled:opacity-50"
+                  >
+                    全日営業 All open
+                  </button>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() =>
+                      onUpdate({ hours: item.hours.map((h) => ({ ...h, is_closed: true })) })
+                    }
+                    className="text-[11px] px-2 py-0.5 rounded-md bg-gray-200 text-gray-600 hover:bg-gray-300 font-semibold transition-colors disabled:opacity-50"
+                  >
+                    全日定休 All closed
+                  </button>
+                </div>
+
+                <HoursEditor
+                  hours={item.hours}
+                  disabled={disabled}
+                  onChange={(hours) => onUpdate({ hours })}
+                />
               </div>
             )}
-            {totalPhotos < 5 && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={disabled}
-              >
-                <ImagePlus className="h-4 w-4" />
-                写真を追加 / Add Photo
-              </Button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleFilePick}
-            />
           </div>
         </div>
       )}
@@ -308,11 +690,14 @@ function MenuItemCard({
   );
 }
 
+// ── Step4Form ──────────────────────────────────────────────────────────────────
+
 export function Step4Form({
   business,
   onSubmit,
   loading,
   error,
+  isNew,
 }: Step4FormProps) {
   const api = useBusinessApi();
 
@@ -330,9 +715,14 @@ export function Step4Form({
 
   const isRestaurant = business.category === "restaurant";
 
+  // Seed one empty item for new restaurants
+  useEffect(() => {
+    if (isRestaurant && isNew) setItems([emptyItem()]);
+  }, [isRestaurant, isNew]);
+
   // Load existing menu items on mount (restaurant only)
   useEffect(() => {
-    if (!isRestaurant) return;
+    if (!isRestaurant || isNew) return;
     (async () => {
       setMenuLoading(true);
       try {
@@ -344,20 +734,33 @@ export function Step4Form({
               category_jp: item.category_jp ?? "",
               category_en: item.category_en ?? "",
               discount_percentage: item.discount_percentage ?? "",
+              // API returns ISO datetime — extract HH:MM for the time input
               discount_start_time: item.discount_start_time
-                ? new Date(item.discount_start_time).toISOString().slice(0, 16)
+                ? (item.discount_start_time.includes("T")
+                    ? item.discount_start_time.split("T")[1].slice(0, 5)
+                    : item.discount_start_time.slice(0, 5))
                 : "",
               discount_end_time: item.discount_end_time
-                ? new Date(item.discount_end_time).toISOString().slice(0, 16)
+                ? (item.discount_end_time.includes("T")
+                    ? item.discount_end_time.split("T")[1].slice(0, 5)
+                    : item.discount_end_time.slice(0, 5))
                 : "",
-              savedPhotos: (item.photos ?? []).map((p) => ({
-                id: p.id,
-                url: p.image_url || p.image,
-                label: p.label,
-              })),
-              pendingFiles: [],
-              pendingLabels: [],
+              savedPhotosJp: (item.photos ?? [])
+                .filter((p) => !(p.label ?? "").startsWith("[en]"))
+                .map((p) => ({ id: p.id, url: p.image_url || p.image, label: p.label })),
+              savedPhotosEn: (item.photos ?? [])
+                .filter((p) => (p.label ?? "").startsWith("[en]"))
+                .map((p) => ({ id: p.id, url: p.image_url || p.image, label: p.label })),
+              pendingFilesJp: [],
+              pendingLabelsJp: [],
+              pendingFilesEn: [],
+              pendingLabelsEn: [],
+              hours:
+                item.hours && item.hours.length > 0
+                  ? mergeHoursWithDefaults(item.hours)
+                  : defaultHours(),
               isOpen: false,
+              showHours: false,
             })),
           );
         } else {
@@ -393,12 +796,18 @@ export function Step4Form({
     setItems((prev) => prev.filter((_, k) => k !== i));
   };
 
-  const removeSavedPhoto = async (itemIdx: number, photoId: number) => {
+  const removeSavedPhoto = async (itemIdx: number, photoId: number, lang: "jp" | "en") => {
     try {
       await api.deleteMenuItemPhoto(photoId);
-      updateItem(itemIdx, {
-        savedPhotos: items[itemIdx].savedPhotos.filter((p) => p.id !== photoId),
-      });
+      if (lang === "jp") {
+        updateItem(itemIdx, {
+          savedPhotosJp: items[itemIdx].savedPhotosJp.filter((p) => p.id !== photoId),
+        });
+      } else {
+        updateItem(itemIdx, {
+          savedPhotosEn: items[itemIdx].savedPhotosEn.filter((p) => p.id !== photoId),
+        });
+      }
     } catch {
       setMenuError("写真の削除に失敗しました");
     }
@@ -410,41 +819,75 @@ export function Step4Form({
     try {
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
+
+        // Skip blank rows
         if (
           !item.category_jp &&
           !item.category_en &&
-          !item.pendingFiles.length &&
-          !item.savedPhotos.length
+          !item.pendingFilesJp.length &&
+          !item.pendingFilesEn.length &&
+          !item.savedPhotosJp.length &&
+          !item.savedPhotosEn.length
         )
-          continue; // skip blank rows
+          continue;
 
         if (!item.id) {
-          // New item — POST /api/menu-items/ with photos in the same request
+          // ── New item ── POST /api/menu-items/ with photos in the same request
           const fd = new FormData();
           fd.append("business", String(business.id));
           if (item.category_jp) fd.append("category_jp", item.category_jp);
           if (item.category_en) fd.append("category_en", item.category_en);
-          if (item.discount_percentage) fd.append("discount_percentage", item.discount_percentage);
-          if (item.discount_start_time) fd.append("discount_start_time", item.discount_start_time);
-          if (item.discount_end_time) fd.append("discount_end_time", item.discount_end_time);
-          item.pendingFiles.forEach((file, pidx) => {
+          if (item.discount_percentage)
+            fd.append("discount_percentage", item.discount_percentage);
+          if (item.discount_start_time)
+            fd.append("discount_start_time", timeToISODatetime(item.discount_start_time) ?? "");
+          if (item.discount_end_time)
+            fd.append("discount_end_time", timeToISODatetime(item.discount_end_time) ?? "");
+          item.pendingFilesJp.forEach((file, pidx) => {
             fd.append("photo_images", file);
-            fd.append("photo_labels", item.pendingLabels[pidx] ?? "");
+            fd.append("photo_labels", `[jp]${item.pendingLabelsJp[pidx] ?? ""}`);
+          });
+          item.pendingFilesEn.forEach((file, pidx) => {
+            fd.append("photo_images", file);
+            fd.append("photo_labels", `[en]${item.pendingLabelsEn[pidx] ?? ""}`);
           });
 
           const created = await api.createMenuItem(fd);
+          const newId = created.id;
+
+          // Bulk-create hours for the new item
+          const hoursPayload = item.hours.map((h) =>
+            h.is_closed
+              ? {
+                  day_of_week: h.day_of_week,
+                  is_closed: true as const,
+                  ...(h.closed_reason ? { closed_reason: h.closed_reason } : {}),
+                }
+              : {
+                  day_of_week: h.day_of_week,
+                  is_closed: false as const,
+                  start_time: h.start_time,
+                  end_time: h.end_time,
+                },
+          );
+          await api.bulkCreateMenuItemHours(newId, hoursPayload);
+
+          const allCreated = (created.photos ?? []).map((p) => ({
+            id: p.id,
+            url: p.image_url || p.image,
+            label: p.label,
+          }));
           updateItem(i, {
-            id: created.id,
-            savedPhotos: (created.photos ?? []).map((p) => ({
-              id: p.id,
-              url: p.image_url || p.image,
-              label: p.label,
-            })),
-            pendingFiles: [],
-            pendingLabels: [],
+            id: newId,
+            savedPhotosJp: allCreated.filter((p) => !(p.label ?? "").startsWith("[en]")),
+            savedPhotosEn: allCreated.filter((p) => (p.label ?? "").startsWith("[en]")),
+            pendingFilesJp: [],
+            pendingLabelsJp: [],
+            pendingFilesEn: [],
+            pendingLabelsEn: [],
           });
         } else {
-          // Existing item — PATCH metadata, then upload new photos separately
+          // ── Existing item ── PATCH metadata
           await api.updateMenuItem(item.id, {
             category_jp: item.category_jp || undefined,
             category_en: item.category_en || undefined,
@@ -453,33 +896,99 @@ export function Step4Form({
             discount_end_time: item.discount_end_time || null,
           });
 
-          for (let pidx = 0; pidx < item.pendingFiles.length; pidx++) {
+          // Upload JP photos
+          for (let pidx = 0; pidx < item.pendingFilesJp.length; pidx++) {
             const pfd = new FormData();
-            pfd.append("menu_item", String(item.id));
-            pfd.append("image", item.pendingFiles[pidx]);
-            const label = item.pendingLabels[pidx];
-            if (label) pfd.append("label", label);
+            pfd.append("menu_item", String(item.id!));
+            pfd.append("image", item.pendingFilesJp[pidx]);
+            pfd.append("label", `[jp]${item.pendingLabelsJp[pidx] ?? ""}`);
             const photo = await api.uploadMenuItemPhoto(pfd);
-            // update in-flight snapshot safely
             setItems((prev) =>
               prev.map((it, k) =>
                 k !== i
                   ? it
                   : {
                       ...it,
-                      savedPhotos: [
-                        ...it.savedPhotos,
-                        {
-                          id: photo.id,
-                          url: photo.image_url || photo.image,
-                          label: photo.label,
-                        },
+                      savedPhotosJp: [
+                        ...it.savedPhotosJp,
+                        { id: photo.id, url: photo.image_url || photo.image, label: photo.label },
                       ],
                     },
               ),
             );
           }
-          updateItem(i, { pendingFiles: [], pendingLabels: [] });
+          // Upload EN photos
+          for (let pidx = 0; pidx < item.pendingFilesEn.length; pidx++) {
+            const pfd = new FormData();
+            pfd.append("menu_item", String(item.id!));
+            pfd.append("image", item.pendingFilesEn[pidx]);
+            pfd.append("label", `[en]${item.pendingLabelsEn[pidx] ?? ""}`);
+            const photo = await api.uploadMenuItemPhoto(pfd);
+            setItems((prev) =>
+              prev.map((it, k) =>
+                k !== i
+                  ? it
+                  : {
+                      ...it,
+                      savedPhotosEn: [
+                        ...it.savedPhotosEn,
+                        { id: photo.id, url: photo.image_url || photo.image, label: photo.label },
+                      ],
+                    },
+              ),
+            );
+          }
+          updateItem(i, {
+            pendingFilesJp: [],
+            pendingLabelsJp: [],
+            pendingFilesEn: [],
+            pendingLabelsEn: [],
+          });
+
+          // Sync hours — split by those with server IDs vs new
+          const existingHours = item.hours.filter(
+            (h) => h.id != null,
+          ) as (HoursDraft & { id: number })[];
+          const newHours = item.hours.filter((h) => h.id == null);
+
+          if (existingHours.length > 0) {
+            await api.bulkUpdateMenuItemHours(
+              existingHours.map((h) =>
+                h.is_closed
+                  ? {
+                      id: h.id,
+                      is_closed: true as const,
+                      ...(h.closed_reason ? { closed_reason: h.closed_reason } : {}),
+                    }
+                  : {
+                      id: h.id,
+                      is_closed: false as const,
+                      start_time: h.start_time,
+                      end_time: h.end_time,
+                    },
+              ),
+            );
+          }
+
+          if (newHours.length > 0) {
+            await api.bulkCreateMenuItemHours(
+              item.id!,
+              newHours.map((h) =>
+                h.is_closed
+                  ? {
+                      day_of_week: h.day_of_week,
+                      is_closed: true as const,
+                      ...(h.closed_reason ? { closed_reason: h.closed_reason } : {}),
+                    }
+                  : {
+                      day_of_week: h.day_of_week,
+                      is_closed: false as const,
+                      start_time: h.start_time,
+                      end_time: h.end_time,
+                    },
+              ),
+            );
+          }
         }
       }
       return true;
@@ -507,8 +1016,10 @@ export function Step4Form({
         (it) =>
           it.category_jp ||
           it.category_en ||
-          it.pendingFiles.length > 0 ||
-          it.savedPhotos.length > 0,
+          it.pendingFilesJp.length > 0 ||
+          it.pendingFilesEn.length > 0 ||
+          it.savedPhotosJp.length > 0 ||
+          it.savedPhotosEn.length > 0,
       )
     ) {
       const ok = await saveMenu();
@@ -523,6 +1034,8 @@ export function Step4Form({
       data.custom_domain = customDomain;
     await onSubmit(data);
   };
+
+  const isLoading = loading || savingMenu;
 
   const plans = [
     {
@@ -566,20 +1079,26 @@ export function Step4Form({
       {/* ── Menu Section (restaurants only) ─────────────────────────────── */}
       {isRestaurant && (
         <div className="space-y-4">
+          {/* Section header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-gray-900">
-                メニュー / Menu
-              </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                各アイテムに写真・カテゴリを設定できます
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center">
+                <UtensilsCrossed className="h-4 w-4 text-orange-500" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 leading-tight">
+                  メニュー / Menu
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  カテゴリ・写真・割引・営業時間を設定できます
+                </p>
+              </div>
             </div>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="gap-1.5"
+              className="gap-1.5 rounded-xl h-9 px-4"
               onClick={saveMenuAndNotify}
               disabled={!!(loading || savingMenu || menuLoading)}
             >
@@ -590,8 +1109,8 @@ export function Step4Form({
                 </>
               ) : menuSaved ? (
                 <>
-                  <Check className="h-3.5 w-3.5 text-green-600" />
-                  <span className="text-green-600">保存済み</span>
+                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="text-emerald-600">保存済み</span>
                 </>
               ) : (
                 <>保存 / Save</>
@@ -607,7 +1126,7 @@ export function Step4Form({
           )}
 
           {menuLoading ? (
-            <div className="flex justify-center py-8">
+            <div className="flex justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
             </div>
           ) : (
@@ -617,21 +1136,23 @@ export function Step4Form({
                   key={i}
                   item={item}
                   index={i}
-                  disabled={!!(loading || savingMenu)}
+                  disabled={!!isLoading}
                   onUpdate={(patch) => updateItem(i, patch)}
                   onRemove={() => removeItem(i)}
-                  onRemoveSavedPhoto={(photoId) => removeSavedPhoto(i, photoId)}
+                  onRemoveSavedPhoto={(photoId, lang) => removeSavedPhoto(i, photoId, lang)}
                 />
               ))}
+
+              {/* Add item button */}
               <button
                 type="button"
                 onClick={() => setItems((prev) => [...prev, emptyItem()])}
-                disabled={!!(loading || savingMenu)}
-                className="w-full border-2 border-dashed border-gray-200 rounded-xl p-5 text-center text-gray-400 hover:border-gray-400 hover:text-gray-500 transition-colors flex items-center justify-center gap-2"
+                disabled={!!isLoading}
+                className="w-full border-2 border-dashed border-gray-200 rounded-2xl p-5 flex items-center justify-center gap-2 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
               >
                 <Plus className="h-5 w-5" />
-                <span className="text-xs font-bold text-black">
-                  メニューアイテムを追加 / Add Menu Item
+                <span className="text-sm font-semibold">
+                  メニューカテゴリを追加 / Add Menu Category
                 </span>
               </button>
             </div>
@@ -640,7 +1161,7 @@ export function Step4Form({
       )}
 
       {/* ── Plan Selection ───────────────────────────────────────────────── */}
-      <div className="p-4 border border-gray-300 rounded-xl bg-stone-50">
+      <div className="p-5 border border-gray-200 rounded-2xl bg-stone-50">
         <h3 className="text-base font-semibold text-gray-900 mb-4">
           プラン選択 / Choose Your Plan
         </h3>
@@ -654,7 +1175,7 @@ export function Step4Form({
               className={`p-6 rounded-xl border-2 transition-all text-left ${
                 selectedPlan === plan.value
                   ? "border-gray-900 bg-white shadow-sm"
-                  : "border-gray-200 hover:border-gray-400"
+                  : "border-gray-200 hover:border-gray-400 bg-white"
               }`}
             >
               {plan.recommended && (
@@ -700,20 +1221,22 @@ export function Step4Form({
             value={customDomain}
             onChange={(e) => setCustomDomain(e.target.value)}
             disabled={loading}
+            className="rounded-lg"
           />
           <p className="text-xs text-gray-500">
-            Point your domain's DNS to menus.jp for custom domain setup
+            Point your domain&apos;s DNS to menus.jp for custom domain setup
           </p>
         </div>
       )}
 
+      {/* ── Publish Button ───────────────────────────────────────────────── */}
       <div className="pt-2">
         <Button
           type="submit"
-          disabled={!!(loading || savingMenu)}
-          className="w-full bg-gray-900 hover:bg-gray-800 text-white h-12 font-semibold flex items-center justify-center gap-2 rounded-xl"
+          disabled={!!isLoading}
+          className="w-full bg-gray-900 hover:bg-gray-800 text-white h-12 font-semibold flex items-center justify-center gap-2 rounded-xl text-base"
         >
-          {loading || savingMenu ? (
+          {isLoading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               {savingMenu ? "メニュー保存中..." : "公開中..."}

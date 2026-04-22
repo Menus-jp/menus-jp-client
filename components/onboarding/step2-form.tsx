@@ -25,6 +25,7 @@ interface Step2FormProps {
   onSubmit: (data: Partial<BusinessProfile>) => Promise<void>;
   loading?: boolean;
   error?: string | null;
+  isNew?: boolean;
 }
 
 const DAYS_OF_WEEK = [
@@ -37,7 +38,7 @@ const DAYS_OF_WEEK = [
   { key: "Sunday", display: "日", short: "Sun" },
 ];
 
-type HoursEntry = { open: string; close: string; lastOrder: string };
+type HoursEntry = { id?: number; open: string; close: string; lastOrder: string };
 
 type PhotoEntry = { id: number; url: string };
 
@@ -108,6 +109,7 @@ export function Step2Form({
   onSubmit,
   loading,
   error,
+  isNew,
 }: Step2FormProps) {
   const [website, setWebsite] = useState(business.website || "");
   const [hours, setHours] = useState<Record<string, HoursEntry>>(() => {
@@ -118,6 +120,8 @@ export function Step2Form({
     return init;
   });
   const [closedDays, setClosedDays] = useState<string[]>([]);
+  // IDs of existing ClosedDay records (needed to delete before recreating)
+  const [closedDayRecords, setClosedDayRecords] = useState<{ id: number; day_of_week: string }[]>([]);
 
   // Photo state — tracks server-persisted photos (id + url)
   const [heroPhoto, setHeroPhoto] = useState<PhotoEntry | null>(null);
@@ -132,19 +136,53 @@ export function Step2Form({
   const heroInputRef = useRef<HTMLInputElement>(null);
   const photosInputRef = useRef<HTMLInputElement>(null);
 
-  // Load existing photos on mount
+  // Load existing photos, hours and closed days on mount
   useEffect(() => {
-    apiClient
-      .get(`/business-photos/?business=${business.id}`)
-      .then((res) => {
-        const photos: any[] = res.data.results ?? res.data;
-        const hero = photos.find((p) => p.is_hero);
-        const gallery = photos.filter((p) => !p.is_hero);
-        if (hero) setHeroPhoto({ id: hero.id, url: hero.image_url });
-        setGalleryPhotos(gallery.map((p) => ({ id: p.id, url: p.image_url })));
+    if (isNew) return;
+    Promise.all([
+      apiClient.get(`/business-photos/?business=${business.id}`),
+      apiClient.get(`/business-hours/?business=${business.id}`),
+      apiClient.get(`/closed-days/?business=${business.id}`),
+    ])
+      .then(([photosRes, hoursRes, closedRes]) => {
+        // Photos
+        const photos: any[] = photosRes.data.results ?? photosRes.data;
+        const hero = photos.find((p: any) => p.is_hero);
+        const gallery = photos.filter((p: any) => !p.is_hero);
+        if (hero) setHeroPhoto({ id: hero.id, url: hero.image_url || hero.image });
+        setGalleryPhotos(gallery.map((p: any) => ({ id: p.id, url: p.image_url || p.image })));
+
+        // Hours — map API records into state (preserving IDs)
+        const existingHours: any[] = hoursRes.data.results ?? hoursRes.data;
+        if (existingHours.length > 0) {
+          const mapped: Record<string, HoursEntry> = {};
+          DAYS_OF_WEEK.forEach((d) => {
+            mapped[d.key] = { open: "11:00", close: "23:59", lastOrder: "23:00" };
+          });
+          existingHours.forEach((h: any) => {
+            const day = DAYS_OF_WEEK.find((d) => DAY_KEY_MAP[d.key] === h.day_of_week);
+            if (!day) return;
+            const toDisplay = (t: string | null) => (t ? t.slice(0, 5) : "00:00");
+            mapped[day.key] = {
+              id: h.id,
+              open: toDisplay(h.opening_time) || "11:00",
+              close: toDisplay(h.closing_time) || "23:59",
+              lastOrder: toDisplay(h.last_order_time) || "23:00",
+            };
+          });
+          setHours(mapped);
+        }
+
+        // Closed days
+        const existingClosed: any[] = closedRes.data.results ?? closedRes.data;
+        setClosedDayRecords(existingClosed.map((cd: any) => ({ id: cd.id, day_of_week: cd.day_of_week })));
+        const closedKeys = existingClosed
+          .map((cd: any) => DAYS_OF_WEEK.find((d) => DAY_KEY_MAP[d.key] === cd.day_of_week)?.key)
+          .filter(Boolean) as string[];
+        setClosedDays(closedKeys);
       })
       .catch(() => {
-        // non-fatal — photos just won't be pre-populated
+        // non-fatal — fall back to defaults
       });
   }, [business.id]);
 
@@ -289,50 +327,80 @@ export function Step2Form({
     e.preventDefault();
     setHoursError(null);
 
-    // Save business hours via bulk endpoint (POST /api/business-hours/bulk_create/)
+    // Decide between bulk_create and bulk_update based on whether hours have IDs
+    const existingIds = DAYS_OF_WEEK.map((d) => hours[d.key]?.id).filter(Boolean);
+    const allHaveIds = existingIds.length === DAYS_OF_WEEK.length;
+    const payload = DAYS_OF_WEEK.map((day) => {
+      const isClosed = closedDays.includes(day.key);
+      const dayHours = hours[day.key];
+      return {
+        ...(dayHours?.id ? { id: dayHours.id } : {}),
+        day_of_week: DAY_KEY_MAP[day.key],
+        is_closed: isClosed,
+        opening_time: isClosed ? null : toApiTime(dayHours?.open || "11:00"),
+        closing_time: isClosed ? null : toApiTime(dayHours?.close || "23:00"),
+        last_order_time: isClosed ? null : toApiTime(dayHours?.lastOrder || "23:59"),
+      };
+    });
+
     try {
-      await apiClient.post("/business-hours/bulk_create/", {
-        business: business.id,
-        hours: DAYS_OF_WEEK.map((day) => {
-          const isClosed = closedDays.includes(day.key);
-          const dayHours = hours[day.key];
-          return {
-            day_of_week: DAY_KEY_MAP[day.key],
-            is_closed: isClosed,
-            // Fall back to the visible defaults if a field is somehow empty
-            opening_time: isClosed
-              ? null
-              : toApiTime(dayHours?.open || "11:00"),
-            closing_time: isClosed
-              ? null
-              : toApiTime(dayHours?.close || "23:00"),
-            last_order_time: isClosed
-              ? null
-              : toApiTime(dayHours?.lastOrder || "23:59"),
-          };
-        }),
-      });
+      if (allHaveIds) {
+        await apiClient.patch("/business-hours/bulk_update/", {
+          business: business.id,
+          hours: payload,
+        });
+      } else {
+        const res = await apiClient.post("/business-hours/bulk_create/", {
+          business: business.id,
+          hours: payload,
+        });
+        // Store returned IDs so a retry uses bulk_update instead of bulk_create
+        const created: any[] = Array.isArray(res.data)
+          ? res.data
+          : (res.data?.hours ?? []);
+        if (created.length > 0) {
+          setHours((prev) => {
+            const next = { ...prev };
+            created.forEach((h: any) => {
+              const day = DAYS_OF_WEEK.find((d) => DAY_KEY_MAP[d.key] === h.day_of_week);
+              if (day) next[day.key] = { ...next[day.key], id: h.id };
+            });
+            return next;
+          });
+        }
+      }
     } catch (err: any) {
       setHoursError(
         err.response?.data?.message ||
           err.response?.data?.detail ||
           "営業時間の保存に失敗しました",
       );
-      return; // block navigation — hours are required
+      return;
     }
 
-    // Save recurring weekly closed days (POST /api/closed-days/bulk_create/)
-    if (closedDays.length > 0) {
-      try {
-        await apiClient.post("/closed-days/bulk_create/", {
+    // Closed days: delete existing records then recreate current selection
+    try {
+      await Promise.all(
+        closedDayRecords.map((cd) =>
+          apiClient.delete(`/closed-days/${cd.id}/`).catch(() => {}),
+        ),
+      );
+      if (closedDays.length > 0) {
+        const res = await apiClient.post("/closed-days/bulk_create/", {
           business: business.id,
           closed_days: closedDays.map((dayKey) => ({
             day_of_week: DAY_KEY_MAP[dayKey],
           })),
         });
-      } catch {
-        // non-fatal — weekly schedule is already persisted via business hours
+        const created: any[] = Array.isArray(res.data)
+          ? res.data
+          : (res.data?.closed_days ?? []);
+        setClosedDayRecords(created.map((cd: any) => ({ id: cd.id, day_of_week: cd.day_of_week })));
+      } else {
+        setClosedDayRecords([]);
       }
+    } catch {
+      // non-fatal
     }
 
     await onSubmit({ website, onboarding_step: 2 });
@@ -525,73 +593,6 @@ export function Step2Form({
           写真 / Photos
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Hero image */}
-          <div>
-            <input
-              ref={heroInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={handleHeroUpload}
-            />
-            <div className="relative w-full h-48 rounded-2xl overflow-hidden border-2 border-dashed border-gray-200">
-              {heroPhoto || heroPreview ? (
-                <>
-                  <img
-                    src={heroPhoto?.url || heroPreview!}
-                    alt="Hero"
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                  {/* Upload progress overlay */}
-                  {heroUploading && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <Loader2 className="h-6 w-6 animate-spin text-white" />
-                    </div>
-                  )}
-                  {/* Hover actions (only when not uploading) */}
-                  {!heroUploading && (
-                    <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-all flex items-center justify-center gap-2 opacity-0 hover:opacity-100">
-                      <button
-                        type="button"
-                        onClick={() => heroInputRef.current?.click()}
-                        className="bg-white text-gray-800 text-xs font-medium px-3 py-1.5 rounded-lg shadow"
-                      >
-                        変更
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleRemoveHero}
-                        className="bg-white text-red-600 text-xs font-medium px-3 py-1.5 rounded-lg shadow"
-                      >
-                        削除
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => heroInputRef.current?.click()}
-                  disabled={loading}
-                  className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition-all"
-                >
-                  <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
-                    <Upload className="h-5 w-5 text-blue-500" />
-                  </div>
-                  <span className="text-sm font-semibold text-gray-800">
-                    ヒーロー画像をアップロード
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    お店の魅力が伝わる写真を選びましょう
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    JPG, PNG, WebP（推奨サイズ：1200x800px以上）
-                  </span>
-                </button>
-              )}
-            </div>
-          </div>
-
           {/* Additional photos */}
           <div>
             <p className="text-sm font-medium text-gray-700 mb-3">

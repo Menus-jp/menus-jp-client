@@ -24,6 +24,7 @@ interface Step3FormProps {
   onSubmit: (data: Partial<BusinessProfile>) => Promise<void>;
   loading?: boolean;
   error?: string | null;
+  isNew?: boolean;
 }
 
 function PlatformIcon({
@@ -326,13 +327,12 @@ function SocialRow({
   );
 }
 
-// ── Main form ────────────────────────────────────────────────────────────────
-
 export function Step3Form({
   business,
   onSubmit,
   loading,
   error,
+  isNew,
 }: Step3FormProps) {
   const [booking, setBooking] =
     useState<Record<BookingPlatformKey, LinkState>>(initBookingState);
@@ -343,6 +343,7 @@ export function Step3Form({
 
   // Load existing links on mount
   useEffect(() => {
+    if (isNew) return;
     Promise.all([
       apiClient.get(`/booking-links/?business=${business.id}`),
       apiClient.get(`/social-links/?business=${business.id}`),
@@ -399,6 +400,22 @@ export function Step3Form({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaveError(null);
+
+    // Client-side validation: enabled platforms must have a URL
+    const missingBooking = BOOKING_PLATFORMS.filter(
+      (def) => booking[def.key].enabled && !booking[def.key].url.trim(),
+    ).map((def) => def.label);
+    const missingSocial = ALL_SOCIAL_PLATFORMS.filter(
+      (def) => social[def.key].enabled && !social[def.key].url.trim(),
+    ).map((def) => def.label);
+    const missing = [...missingBooking, ...missingSocial];
+    if (missing.length > 0) {
+      setSaveError(
+        `URLを入力してください / Please enter a URL for: ${missing.join(", ")}`,
+      );
+      return;
+    }
+
     setSaving(true);
 
     try {

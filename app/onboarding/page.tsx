@@ -24,11 +24,14 @@ function OnboardingContent() {
     createBookingLink,
     createSocialLink,
     uploadPhoto,
+    listPhotos,
+    deletePhoto,
   } = useBusinessApi();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [isNewBusiness, setIsNewBusiness] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");;
 
   useEffect(() => {
     if (successMessage) {
@@ -48,6 +51,42 @@ function OnboardingContent() {
   }) => {
     try {
       clearError();
+
+      if (business) {
+        // Business already exists (user went back from step 2) — PATCH
+        const patch: Partial<BusinessProfile> = {
+          business_name: data.business_name,
+          category: data.category as BusinessProfile["category"],
+        };
+        if (data.address !== undefined) patch.address = data.address;
+        if (data.phone_number !== undefined) patch.phone_number = data.phone_number;
+        if (data.latitude != null) patch.latitude = data.latitude;
+        if (data.longitude != null) patch.longitude = data.longitude;
+
+        const updated = await updateBusiness(business.id, patch);
+        let merged = { ...business, ...updated };
+
+        if (data.heroImage) {
+          // Replace existing hero: delete old one first, then upload new
+          const photos = await listPhotos(business.id);
+          const existingHero = photos.find((p) => p.is_hero);
+          if (existingHero) await deletePhoto(existingHero.id);
+          const fd = new FormData();
+          fd.append("business", String(business.id));
+          fd.append("image", data.heroImage);
+          fd.append("is_hero", "true");
+          fd.append("display_order", "0");
+          await uploadPhoto(fd);
+        }
+
+        setBusiness(merged);
+        setIsNewBusiness(false);
+        setSuccessMessage("Business profile updated!");
+        setCurrentStep(2);
+        return;
+      }
+
+      // New business — POST
       const newBusiness = await createBusiness({
         business_name: data.business_name,
         category: data.category,
@@ -57,6 +96,11 @@ function OnboardingContent() {
         category: data.category as BusinessProfile["category"],
       };
 
+      // Set business in state immediately after creation so that if any
+      // subsequent step (patch / photo upload) fails, a retry will use
+      // the PATCH path instead of trying to POST again.
+      setBusiness(merged);
+
       const patch: Partial<BusinessProfile> = {};
       if (data.address) patch.address = data.address;
       if (data.phone_number) patch.phone_number = data.phone_number;
@@ -65,6 +109,20 @@ function OnboardingContent() {
       if (Object.keys(patch).length > 0) {
         const updated = await updateBusiness(newBusiness.id, patch);
         merged = { ...merged, ...updated };
+        setBusiness(merged);
+      }
+
+      // Wipe any photos already on this business ID before uploading the
+      // fresh hero. This handles the case where the backend returned an
+      // existing business (e.g. from a previous onboarding attempt),
+      // ensuring step 2 never shows stale photos from that old record.
+      try {
+        const existingPhotos = await listPhotos(newBusiness.id);
+        if (existingPhotos.length > 0) {
+          await Promise.all(existingPhotos.map((p) => deletePhoto(p.id)));
+        }
+      } catch {
+        // non-fatal — worst case step 2 shows old photos
       }
 
       if (data.heroImage) {
@@ -77,6 +135,7 @@ function OnboardingContent() {
       }
 
       setBusiness(merged);
+      setIsNewBusiness(true);
       setSuccessMessage("Business profile created!");
       setCurrentStep(2);
     } catch (err) {
@@ -129,6 +188,7 @@ function OnboardingContent() {
       clearError();
       const updated = await updateBusiness(business.id, data);
       setBusiness((prev) => ({ ...prev!, ...updated }));
+      setIsNewBusiness(false);
       setSuccessMessage("Links configured!");
       setCurrentStep(4);
     } catch (err) {
@@ -255,6 +315,7 @@ function OnboardingContent() {
               onSubmit={handleStep2Submit}
               loading={loading}
               error={error}
+              isNew={isNewBusiness}
             />
           )}
 
@@ -264,6 +325,7 @@ function OnboardingContent() {
               onSubmit={handleStep3Submit}
               loading={loading}
               error={error}
+              isNew={isNewBusiness}
             />
           )}
 
@@ -274,6 +336,7 @@ function OnboardingContent() {
               onPublish={() => publishBusiness(business.id)}
               loading={loading}
               error={error}
+              isNew={isNewBusiness}
             />
           )}
         </div>

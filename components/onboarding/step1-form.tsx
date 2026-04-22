@@ -68,6 +68,14 @@ export function Step1Form({
     phone_number: currentBusiness?.phone_number || "",
   });
 
+  const [fieldErrors, setFieldErrors] = useState<{
+    business_name?: string;
+    category?: string;
+    address?: string;
+    phone_number?: string;
+    heroImage?: string;
+  }>({});
+
   // Hero banner state
   const [heroFile, setHeroFile] = useState<File | null>(null);
   const [heroPreview, setHeroPreview] = useState<string | null>(
@@ -107,6 +115,10 @@ export function Step1Form({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear the error for this field as soon as the user starts typing
+    if (fieldErrors[name as keyof typeof fieldErrors]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
   };
 
   const handleHeroPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,6 +126,7 @@ export function Step1Form({
     if (!file) return;
     setHeroFile(file);
     setHeroPreview(URL.createObjectURL(file));
+    setFieldErrors((prev) => ({ ...prev, heroImage: undefined }));
     e.target.value = "";
   };
 
@@ -139,6 +152,25 @@ export function Step1Form({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const errors: typeof fieldErrors = {};
+    if (!formData.business_name.trim())
+      errors.business_name = "店舗名を入力してください / Business name is required";
+    if (!formData.category)
+      errors.category = "業種を選択してください / Please select a category";
+    if (!formData.address.trim())
+      errors.address = "住所を入力してください / Address is required";
+    if (!formData.phone_number.trim())
+      errors.phone_number = "電話番号を入力してください / Phone number is required";
+    if (!heroFile && !heroPreview)
+      errors.heroImage = "ヒーロー画像をアップロードしてください / Hero image is required";
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
     await onSubmit({
       ...formData,
       heroImage: heroFile,
@@ -150,8 +182,10 @@ export function Step1Form({
   const canSubmit =
     !loading &&
     !!formData.business_name &&
+    !!formData.category &&
     !!formData.address &&
-    !!formData.phone_number;
+    !!formData.phone_number &&
+    !!(heroFile || heroPreview);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -179,10 +213,15 @@ export function Step1Form({
             value={formData.business_name}
             onChange={handleChange}
             placeholder="店舗名を入力してください"
-            className="mt-2 border border-gray-200 rounded-xl bg-white px-4 py-3 h-12 focus:outline-none focus:ring-2 focus:ring-gray-900"
+            className={`mt-2 border rounded-xl bg-white px-4 py-3 h-12 focus:outline-none focus:ring-2 focus:ring-gray-900 ${
+              fieldErrors.business_name ? "border-red-400" : "border-gray-200"
+            }`}
             disabled={loading}
             required
           />
+          {fieldErrors.business_name && (
+            <p className="mt-1 text-xs text-red-500">{fieldErrors.business_name}</p>
+          )}
         </div>
 
         <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
@@ -192,17 +231,20 @@ export function Step1Form({
             </Label>
             <span className="text-red-500 text-sm">必須</span>
           </div>
-          <div className="grid grid-cols-5 gap-2">
+          <div className={`grid grid-cols-5 gap-2 rounded-xl p-1 ${
+            fieldErrors.category ? "ring-1 ring-red-400" : ""
+          }`}>
             {categories.map((cat) => (
               <button
                 key={cat.value}
                 type="button"
-                onClick={() =>
+                onClick={() => {
                   setFormData((prev) => ({
                     ...prev,
                     category: cat.value as BusinessProfile["category"],
-                  }))
-                }
+                  }));
+                  setFieldErrors((prev) => ({ ...prev, category: undefined }));
+                }}
                 disabled={loading}
                 className={`p-3 rounded-2xl border-2 transition-all text-center flex flex-col items-center justify-center ${
                   formData.category === cat.value
@@ -220,6 +262,9 @@ export function Step1Form({
               </button>
             ))}
           </div>
+          {fieldErrors.category && (
+            <p className="mt-2 text-xs text-red-500">{fieldErrors.category}</p>
+          )}
         </div>
       </div>
 
@@ -239,12 +284,17 @@ export function Step1Form({
               onChange={handleChange}
               onBlur={handleAddressBlur}
               placeholder="東京都渋谷区宇田川町1-2-3"
-              className="border border-gray-200 rounded-xl bg-white px-4 py-3 h-12 pr-10 focus:outline-none focus:ring-2 focus:ring-gray-900"
+              className={`border rounded-xl bg-white px-4 py-3 h-12 pr-10 focus:outline-none focus:ring-2 focus:ring-gray-900 ${
+                fieldErrors.address ? "border-red-400" : "border-gray-200"
+              }`}
               disabled={loading}
               required
             />
             <MapPin className="h-4 w-4 absolute right-3 top-3.5 text-gray-400" />
           </div>
+          {fieldErrors.address && (
+            <p className="mt-1 text-xs text-red-500">{fieldErrors.address}</p>
+          )}
         </div>
 
         <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
@@ -263,17 +313,27 @@ export function Step1Form({
             value={formData.phone_number}
             onChange={handleChange}
             placeholder="03-1234-5678"
-            className="border border-gray-200 rounded-xl bg-white px-4 py-3 h-12 focus:outline-none focus:ring-2 focus:ring-gray-900"
+            className={`border rounded-xl bg-white px-4 py-3 h-12 focus:outline-none focus:ring-2 focus:ring-gray-900 ${
+              fieldErrors.phone_number ? "border-red-400" : "border-gray-200"
+            }`}
             required
           />
+          {fieldErrors.phone_number && (
+            <p className="mt-1 text-xs text-red-500">{fieldErrors.phone_number}</p>
+          )}
         </div>
       </div>
 
-      <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+      <div className={`p-4 border rounded-lg bg-gray-50 ${
+        fieldErrors.heroImage ? "border-red-400" : "border-gray-200"
+      }`}>
         <div className="mb-3">
-          <Label className="font-semibold text-gray-900">
-            ヒーロー画像 / Hero Banner
-          </Label>
+          <div className="flex items-center gap-1">
+            <Label className="font-semibold text-gray-900">
+              ヒーロー画像 / Hero Banner
+            </Label>
+            <span className="text-red-500 text-sm">必須</span>
+          </div>
           <p className="text-xs text-gray-400 mt-0.5">
             店舗ページの最上部に表示されるメイン画像（推奨: 1200×400px 以上）
             <br />
@@ -335,6 +395,9 @@ export function Step1Form({
           className="hidden"
           onChange={handleHeroPick}
         />
+        {fieldErrors.heroImage && (
+          <p className="mt-2 text-xs text-red-500">{fieldErrors.heroImage}</p>
+        )}
       </div>
 
       <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 space-y-4">

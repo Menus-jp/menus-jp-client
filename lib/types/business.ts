@@ -16,6 +16,8 @@ export interface BusinessProfile {
   is_active: boolean;
   onboarding_step: number;
   hero_image?: string;
+  hero_image_url?: string;
+  public_url?: string;
   created_at: string;
   updated_at: string;
   published_at?: string;
@@ -77,6 +79,23 @@ export interface MenuItemPhoto {
   label?: string;
 }
 
+export interface MenuItemHours {
+  id: number;
+  menu_item: number;
+  day_of_week:
+    | "monday"
+    | "tuesday"
+    | "wednesday"
+    | "thursday"
+    | "friday"
+    | "saturday"
+    | "sunday";
+  is_closed: boolean;
+  closed_reason?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+}
+
 export interface MenuItem {
   id: number;
   business: number;
@@ -85,6 +104,7 @@ export interface MenuItem {
   discount_percentage?: string | null;
   discount_start_time?: string | null;
   discount_end_time?: string | null;
+  hours?: MenuItemHours[];
   photos?: MenuItemPhoto[];
   created_at: string;
   updated_at: string;
