@@ -53,10 +53,28 @@ export function useBusinessApi() {
   }, []);
 
   const createBusiness = useCallback(
-    async (data: { business_name: string; category: string }) => {
+    async (data: {
+      business_name: string;
+      category: string;
+      address?: string;
+      phone_number?: string;
+      latitude?: number;
+      longitude?: number;
+      hero_image?: File | null;
+    }) => {
       try {
         setLoading(true);
-        const res = await apiClient.post("/businesses/", data);
+        const fd = new FormData();
+        fd.append("business_name", data.business_name);
+        fd.append("category", data.category);
+        if (data.address) fd.append("address", data.address);
+        if (data.phone_number) fd.append("phone_number", data.phone_number);
+        if (data.latitude != null) fd.append("latitude", String(data.latitude));
+        if (data.longitude != null) fd.append("longitude", String(data.longitude));
+        if (data.hero_image) fd.append("hero_image", data.hero_image);
+        const res = await apiClient.post("/businesses/", fd, {
+          headers: { "Content-Type": undefined },
+        });
         return res.data as BusinessProfile;
       } catch (err: any) {
         setError(extractError(err, "Failed to create business"));
@@ -69,10 +87,20 @@ export function useBusinessApi() {
   );
 
   const updateBusiness = useCallback(
-    async (id: number, data: Partial<BusinessProfile>) => {
+    async (id: number, data: Partial<BusinessProfile> & { hero_image?: File | null }) => {
       try {
         setLoading(true);
-        const res = await apiClient.patch(`/businesses/${id}/`, data);
+        const fd = new FormData();
+        if (data.business_name) fd.append("business_name", data.business_name);
+        if (data.category) fd.append("category", data.category);
+        if (data.address) fd.append("address", data.address);
+        if (data.phone_number) fd.append("phone_number", data.phone_number);
+        if (data.latitude != null) fd.append("latitude", String(data.latitude));
+        if (data.longitude != null) fd.append("longitude", String(data.longitude));
+        if (data.hero_image) fd.append("hero_image", data.hero_image);
+        const res = await apiClient.patch(`/businesses/${id}/`, fd, {
+          headers: { "Content-Type": undefined },
+        });
         return res.data as BusinessProfile;
       } catch (err: any) {
         setError(extractError(err, "Failed to update business"));

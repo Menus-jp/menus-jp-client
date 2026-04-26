@@ -8,7 +8,7 @@ import { Step1Form } from "@/components/onboarding/step1-form";
 import { Step2Form } from "@/components/onboarding/step2-form";
 import { Step3Form } from "@/components/onboarding/step3-form";
 import { Step4Form } from "@/components/onboarding/step4-form";
-import { BusinessProfile, BookingLink, SocialLink } from "@/lib/types/business";
+import { BusinessProfile } from "@/lib/types/business";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle } from "lucide-react";
 
@@ -21,8 +21,6 @@ function OnboardingContent() {
     createBusiness,
     updateBusiness,
     publishBusiness,
-    createBookingLink,
-    createSocialLink,
     uploadPhoto,
     listPhotos,
     deletePhoto,
@@ -52,33 +50,20 @@ function OnboardingContent() {
     try {
       clearError();
 
+
       if (business) {
-        // Business already exists (user went back from step 2) — PATCH
-        const patch: Partial<BusinessProfile> = {
+        // PATCH with hero_image as top-level field
+        const patch: Partial<BusinessProfile> & { hero_image?: File | null } = {
           business_name: data.business_name,
           category: data.category as BusinessProfile["category"],
+          address: data.address,
+          phone_number: data.phone_number,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          hero_image: data.hero_image,
         };
-        if (data.address !== undefined) patch.address = data.address;
-        if (data.phone_number !== undefined) patch.phone_number = data.phone_number;
-        if (data.latitude != null) patch.latitude = data.latitude;
-        if (data.longitude != null) patch.longitude = data.longitude;
-
         const updated = await updateBusiness(business.id, patch);
-        let merged = { ...business, ...updated };
-
-        if (data.heroImage) {
-          // Replace existing hero: delete old one first, then upload new
-          const photos = await listPhotos(business.id);
-          const existingHero = photos.find((p) => p.is_hero);
-          if (existingHero) await deletePhoto(existingHero.id);
-          const fd = new FormData();
-          fd.append("business", String(business.id));
-          fd.append("image", data.heroImage);
-          fd.append("is_hero", "true");
-          fd.append("display_order", "0");
-          await uploadPhoto(fd);
-        }
-
+        const merged = { ...business, ...updated };
         setBusiness(merged);
         setIsNewBusiness(false);
         setSuccessMessage("Business profile updated!");
@@ -86,54 +71,20 @@ function OnboardingContent() {
         return;
       }
 
-      // New business — POST
+      // New business — POST with hero_image as top-level field
       const newBusiness = await createBusiness({
         business_name: data.business_name,
         category: data.category,
+        address: data.address,
+        phone_number: data.phone_number,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        hero_image: data.hero_image,
       });
       let merged = {
         ...newBusiness,
         category: data.category as BusinessProfile["category"],
       };
-
-      // Set business in state immediately after creation so that if any
-      // subsequent step (patch / photo upload) fails, a retry will use
-      // the PATCH path instead of trying to POST again.
-      setBusiness(merged);
-
-      const patch: Partial<BusinessProfile> = {};
-      if (data.address) patch.address = data.address;
-      if (data.phone_number) patch.phone_number = data.phone_number;
-      if (data.latitude != null) patch.latitude = data.latitude;
-      if (data.longitude != null) patch.longitude = data.longitude;
-      if (Object.keys(patch).length > 0) {
-        const updated = await updateBusiness(newBusiness.id, patch);
-        merged = { ...merged, ...updated };
-        setBusiness(merged);
-      }
-
-      // Wipe any photos already on this business ID before uploading the
-      // fresh hero. This handles the case where the backend returned an
-      // existing business (e.g. from a previous onboarding attempt),
-      // ensuring step 2 never shows stale photos from that old record.
-      try {
-        const existingPhotos = await listPhotos(newBusiness.id);
-        if (existingPhotos.length > 0) {
-          await Promise.all(existingPhotos.map((p) => deletePhoto(p.id)));
-        }
-      } catch {
-        // non-fatal — worst case step 2 shows old photos
-      }
-
-      if (data.heroImage) {
-        const fd = new FormData();
-        fd.append("business", String(newBusiness.id));
-        fd.append("image", data.heroImage);
-        fd.append("is_hero", "true");
-        fd.append("display_order", "0");
-        await uploadPhoto(fd);
-      }
-
       setBusiness(merged);
       setIsNewBusiness(true);
       setSuccessMessage("Business profile created!");
@@ -156,39 +107,12 @@ function OnboardingContent() {
     }
   };
 
-  const handleAddBookingLink = async (link: BookingLink) => {
-    try {
-      clearError();
-      await createBookingLink({
-        ...link,
-        business: business?.id || 0,
-      });
-      setSuccessMessage("Booking link added!");
-    } catch (err) {
-      console.error("Booking link error:", err);
-    }
-  };
-
-  const handleAddSocialLink = async (link: SocialLink) => {
-    try {
-      clearError();
-      await createSocialLink({
-        ...link,
-        business: business?.id || 0,
-      });
-      setSuccessMessage("Social link added!");
-    } catch (err) {
-      console.error("Social link error:", err);
-    }
-  };
-
   const handleStep3Submit = async (data: Partial<BusinessProfile>) => {
     if (!business) return;
     try {
       clearError();
       const updated = await updateBusiness(business.id, data);
       setBusiness((prev) => ({ ...prev!, ...updated }));
-      setIsNewBusiness(false);
       setSuccessMessage("Links configured!");
       setCurrentStep(4);
     } catch (err) {

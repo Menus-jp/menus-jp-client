@@ -22,7 +22,7 @@ interface Step1FormProps {
     category: string;
     address?: string;
     phone_number?: string;
-    heroImage?: File | null;
+    hero_image?: File | null;
     latitude?: number;
     longitude?: number;
   }) => Promise<void>;
@@ -73,7 +73,7 @@ export function Step1Form({
     category?: string;
     address?: string;
     phone_number?: string;
-    heroImage?: string;
+    hero_image?: string;
   }>({});
 
   // Hero banner state
@@ -126,7 +126,7 @@ export function Step1Form({
     if (!file) return;
     setHeroFile(file);
     setHeroPreview(URL.createObjectURL(file));
-    setFieldErrors((prev) => ({ ...prev, heroImage: undefined }));
+    setFieldErrors((prev) => ({ ...prev, hero_image: undefined }));
     e.target.value = "";
   };
 
@@ -163,7 +163,7 @@ export function Step1Form({
     if (!formData.phone_number.trim())
       errors.phone_number = "電話番号を入力してください / Phone number is required";
     if (!heroFile && !heroPreview)
-      errors.heroImage = "ヒーロー画像をアップロードしてください / Hero image is required";
+      errors.hero_image = "ヒーロー画像をアップロードしてください / Hero image is required";
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -173,7 +173,7 @@ export function Step1Form({
     setFieldErrors({});
     await onSubmit({
       ...formData,
-      heroImage: heroFile,
+      hero_image: heroFile,
       latitude: lat ? parseFloat(lat) : undefined,
       longitude: lng ? parseFloat(lng) : undefined,
     });
@@ -325,7 +325,7 @@ export function Step1Form({
       </div>
 
       <div className={`p-4 border rounded-lg bg-gray-50 ${
-        fieldErrors.heroImage ? "border-red-400" : "border-gray-200"
+        fieldErrors.hero_image ? "border-red-400" : "border-gray-200"
       }`}>
         <div className="mb-3">
           <div className="flex items-center gap-1">
@@ -395,8 +395,8 @@ export function Step1Form({
           className="hidden"
           onChange={handleHeroPick}
         />
-        {fieldErrors.heroImage && (
-          <p className="mt-2 text-xs text-red-500">{fieldErrors.heroImage}</p>
+        {fieldErrors.hero_image && (
+          <p className="mt-2 text-xs text-red-500">{fieldErrors.hero_image}</p>
         )}
       </div>
 

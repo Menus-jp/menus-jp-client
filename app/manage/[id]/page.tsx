@@ -2,11 +2,21 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { timeToISODatetime } from "@/lib/utils";
+import { isoToDatetimeLocalInput, timeToISODatetime } from "@/lib/utils";
 import Link from "next/link";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { useBusinessApi } from "@/lib/hooks/useBusinessApi";
 import apiClient from "@/lib/api/auth";
+import {
+  ALL_SOCIAL_PLATFORMS,
+  BOOKING_PLATFORMS,
+  BusinessLinksEditor,
+  BookingPlatformKey,
+  initBookingState,
+  initSocialState,
+  LinkState,
+  SocialPlatformKey,
+} from "@/components/business/links-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,14 +31,10 @@ import {
   ChevronUp,
   MapPin,
   Cloud,
-  Check,
   X,
   Plus,
   Trash2,
   ImagePlus,
-  ExternalLink,
-  Share2,
-  Link as LinkIcon,
   Clock,
   Tag,
   Percent,
@@ -39,10 +45,7 @@ import {
   BusinessProfile,
   BusinessDetail,
   ClosedDay,
-  MenuItem,
   MenuItemHours,
-  BookingLink,
-  SocialLink,
 } from "@/lib/types/business";
 import { Switch } from "@/components/ui/switch";
 
@@ -73,7 +76,56 @@ type HourEntry = {
 };
 type PhotoEntry = { id: number; url: string; is_hero: boolean };
 
-// ── Menu item draft ──────────────────────────────────────────────────────────
+function formatTimeWithPeriod(time: string): string {
+  const hour = Number(time.split(":")[0] || 0);
+  return `${time} ${hour < 12 ? "AM" : "PM"}`;
+}
+
+function BusinessTimeSpinner({
+  value,
+  onChange,
+  disabled,
+  className = "w-[172px]",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const adjust = (delta: number) => {
+    const [hours, minutes] = value.split(":").map(Number);
+    const next = Math.max(0, Math.min(1439, (hours * 60 + (minutes || 0)) + delta));
+    const hh = String(Math.floor(next / 60)).padStart(2, "0");
+    const mm = String(next % 60).padStart(2, "0");
+    onChange(`${hh}:${mm}`);
+  };
+
+  return (
+    <div className={`flex items-center rounded-[18px] border border-[#cfd6df] bg-white select-none overflow-hidden shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)] ${className}`}>
+      <span className="flex-1 px-5 py-3 text-center text-[15px] font-medium text-gray-900 leading-none">
+        {formatTimeWithPeriod(value)}
+      </span>
+      <div className="flex flex-col border-l border-gray-200 shrink-0">
+        <button
+          type="button"
+          onClick={() => adjust(30)}
+          disabled={disabled}
+          className="flex items-center justify-center px-2 py-1.5 hover:bg-gray-50 border-b border-gray-200"
+        >
+          <ChevronUp className="h-3 w-3 text-gray-400" />
+        </button>
+        <button
+          type="button"
+          onClick={() => adjust(-30)}
+          disabled={disabled}
+          className="flex items-center justify-center px-2 py-1.5 hover:bg-gray-50"
+        >
+          <ChevronDown className="h-3 w-3 text-gray-400" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 type DayOfWeek =
   | "monday"
@@ -146,8 +198,8 @@ interface MenuItemDraft {
   category_jp: string;
   category_en: string;
   discount_percentage: string;
-  discount_start_time: string; // HH:MM
-  discount_end_time: string;   // HH:MM
+  discount_start_time: string; // YYYY-MM-DDTHH:MM
+  discount_end_time: string;   // YYYY-MM-DDTHH:MM
   savedPhotosJp: { id: number; url: string; label?: string }[];
   pendingFilesJp: File[];
   pendingLabelsJp: string[];
@@ -221,8 +273,6 @@ function PhotoThumb({
     </div>
   );
 }
-
-// ── HoursEditor ────────────────────────────────────────────────────────────────
 
 function HoursEditor({
   hours,
@@ -307,8 +357,6 @@ function HoursEditor({
     </div>
   );
 }
-
-// ── MenuItemCard ───────────────────────────────────────────────────────────────
 
 function MenuItemCard({
   item,
@@ -618,9 +666,9 @@ function MenuItemCard({
                 />
               </div>
               <div>
-                <Label className="text-[11px] text-gray-400 mb-1.5 block">開始時間</Label>
+                <Label className="text-[11px] text-gray-400 mb-1.5 block">開始日時</Label>
                 <Input
-                  type="time"
+                  type="datetime-local"
                   value={item.discount_start_time}
                   onChange={(e) => onUpdate({ discount_start_time: e.target.value })}
                   disabled={disabled}
@@ -628,9 +676,9 @@ function MenuItemCard({
                 />
               </div>
               <div>
-                <Label className="text-[11px] text-gray-400 mb-1.5 block">終了時間</Label>
+                <Label className="text-[11px] text-gray-400 mb-1.5 block">終了日時</Label>
                 <Input
-                  type="time"
+                  type="datetime-local"
                   value={item.discount_end_time}
                   onChange={(e) => onUpdate({ discount_end_time: e.target.value })}
                   disabled={disabled}
@@ -711,305 +759,6 @@ function MenuItemCard({
   );
 }
 
-function PlatformIcon({
-  bg,
-  children,
-}: {
-  bg: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bg}`}
-    >
-      {children}
-    </div>
-  );
-}
-
-const LineIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
-    <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314" />
-  </svg>
-);
-
-const InstagramIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
-    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-  </svg>
-);
-
-const FacebookIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
-    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-  </svg>
-);
-
-const YouTubeIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
-    <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z" />
-  </svg>
-);
-
-const TikTokIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
-    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
-  </svg>
-);
-
-type BookingPlatformKey = BookingLink["platform"];
-type SocialPlatformKey = SocialLink["platform"];
-
-interface BookingPlatformDef {
-  key: BookingPlatformKey;
-  label: string;
-  labelEn: string;
-  placeholder: string;
-  iconBg: string;
-  icon: React.ReactNode;
-}
-interface SocialPlatformDef {
-  key: SocialPlatformKey;
-  label: string;
-  placeholder: string;
-  iconBg: string;
-  icon: React.ReactNode;
-}
-
-const BOOKING_PLATFORMS: BookingPlatformDef[] = [
-  {
-    key: "tabelog",
-    label: "食べログ",
-    labelEn: "Tabelog",
-    placeholder: "https://tabelog.com/tokyo/A1300/",
-    iconBg: "bg-amber-500",
-    icon: (
-      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
-        <path d="M11 2v7H4v2h7v11h2V11h7V9h-7V2z" />
-      </svg>
-    ),
-  },
-  {
-    key: "hot_pepper_gourmet",
-    label: "HOT PEPPER グルメ",
-    labelEn: "Hot Pepper Gourmet",
-    placeholder: "https://www.hotpepper.jp/strJ000123456/",
-    iconBg: "bg-red-600",
-    icon: (
-      <span className="text-white text-xs font-black tracking-tight">HP</span>
-    ),
-  },
-  {
-    key: "line_reservation",
-    label: "LINE で予約",
-    labelEn: "LINE",
-    placeholder: "https://lin.ee/abc123",
-    iconBg: "bg-green-500",
-    icon: <LineIcon />,
-  },
-  {
-    key: "open_table",
-    label: "OpenTable",
-    labelEn: "",
-    placeholder: "https://opentable.com/...",
-    iconBg: "bg-white border border-gray-200",
-    icon: (
-      <span className="text-red-600 text-2xl font-black leading-none">•</span>
-    ),
-  },
-];
-
-const SOCIAL_PLATFORMS_LEFT: SocialPlatformDef[] = [
-  {
-    key: "instagram",
-    label: "Instagram",
-    placeholder: "https://instagram.com/@...",
-    iconBg: "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600",
-    icon: <InstagramIcon />,
-  },
-  {
-    key: "facebook",
-    label: "Facebook",
-    placeholder: "https://facebook.com/...",
-    iconBg: "bg-blue-600",
-    icon: <FacebookIcon />,
-  },
-  {
-    key: "twitter",
-    label: "X (Twitter)",
-    placeholder: "https://x.com/...",
-    iconBg: "bg-gray-950",
-    icon: <X className="w-4 h-4 text-white" />,
-  },
-  {
-    key: "line",
-    label: "LINE（公式アカウント）",
-    placeholder: "https://lin.ee/...",
-    iconBg: "bg-green-500",
-    icon: <LineIcon />,
-  },
-];
-
-const SOCIAL_PLATFORMS_RIGHT: SocialPlatformDef[] = [
-  {
-    key: "youtube",
-    label: "YouTube",
-    placeholder: "https://youtube.com/@...",
-    iconBg: "bg-red-600",
-    icon: <YouTubeIcon />,
-  },
-  {
-    key: "tiktok",
-    label: "TikTok",
-    placeholder: "https://tiktok.com/@...",
-    iconBg: "bg-gray-950",
-    icon: <TikTokIcon />,
-  },
-  {
-    key: "custom",
-    label: "その他 / Other",
-    placeholder: "https://...",
-    iconBg: "bg-gray-400",
-    icon: <LinkIcon className="w-4 h-4 text-white" />,
-  },
-];
-
-const ALL_SOCIAL_PLATFORMS = [
-  ...SOCIAL_PLATFORMS_LEFT,
-  ...SOCIAL_PLATFORMS_RIGHT,
-];
-
-type LinkState = { id: number | null; url: string; enabled: boolean };
-
-function initBookingState(): Record<BookingPlatformKey, LinkState> {
-  const s = {} as Record<BookingPlatformKey, LinkState>;
-  for (const p of BOOKING_PLATFORMS)
-    s[p.key] = { id: null, url: "", enabled: false };
-  return s;
-}
-
-function initSocialState(): Record<SocialPlatformKey, LinkState> {
-  const s = {} as Record<SocialPlatformKey, LinkState>;
-  for (const p of ALL_SOCIAL_PLATFORMS)
-    s[p.key] = { id: null, url: "", enabled: false };
-  return s;
-}
-
-function BookingRow({
-  def,
-  state,
-  onChange,
-  onToggle,
-  disabled,
-}: {
-  def: BookingPlatformDef;
-  state: LinkState;
-  onChange: (url: string) => void;
-  onToggle: (v: boolean) => void;
-  disabled?: boolean;
-}) {
-  const hasUrl = state.url.trim() !== "";
-  return (
-    <div className="flex items-center gap-3 py-3">
-      <Switch
-        checked={state.enabled}
-        onCheckedChange={onToggle}
-        disabled={disabled}
-        className="data-[state=checked]:bg-emerald-500"
-      />
-      <PlatformIcon bg={def.iconBg}>{def.icon}</PlatformIcon>
-      <div className="w-36 shrink-0">
-        <p className="text-sm font-semibold text-gray-900 leading-tight">
-          {def.label}
-        </p>
-        {def.labelEn && (
-          <p className="text-xs text-gray-400 leading-tight mt-0.5">
-            {def.labelEn}
-          </p>
-        )}
-      </div>
-      <div className="flex-1 relative">
-        <Input
-          type="url"
-          value={state.url}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={def.placeholder}
-          disabled={disabled}
-          className="pr-9 h-10 rounded-xl border-gray-200 bg-gray-50 focus:bg-white text-sm placeholder:text-gray-300"
-        />
-        {hasUrl ? (
-          <a
-            href={state.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-700"
-            tabIndex={-1}
-          >
-            <ExternalLink className="h-4 w-4" />
-          </a>
-        ) : (
-          <ExternalLink className="absolute right-2.5 top-2.5 h-4 w-4 text-gray-300 pointer-events-none" />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SocialRow({
-  def,
-  state,
-  onChange,
-  onToggle,
-  disabled,
-}: {
-  def: SocialPlatformDef;
-  state: LinkState;
-  onChange: (url: string) => void;
-  onToggle: (v: boolean) => void;
-  disabled?: boolean;
-}) {
-  const hasUrl = state.url.trim() !== "";
-  return (
-    <div className="flex items-center gap-2.5">
-      <Switch
-        checked={state.enabled}
-        onCheckedChange={onToggle}
-        disabled={disabled}
-        className="data-[state=checked]:bg-emerald-500"
-      />
-      <PlatformIcon bg={def.iconBg}>{def.icon}</PlatformIcon>
-      <div className="w-28 shrink-0">
-        <p className="text-xs font-semibold text-gray-900 leading-tight">
-          {def.label}
-        </p>
-      </div>
-      <div className="flex-1 relative">
-        <Input
-          type="url"
-          value={state.url}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={def.placeholder}
-          disabled={disabled}
-          className="pr-8 h-9 rounded-xl border-gray-200 bg-gray-50 focus:bg-white text-xs placeholder:text-gray-300"
-        />
-        {hasUrl ? (
-          <a
-            href={state.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute right-2 top-2 text-gray-400 hover:text-gray-700"
-            tabIndex={-1}
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        ) : (
-          <ExternalLink className="absolute right-2 top-2 h-3.5 w-3.5 text-gray-300 pointer-events-none" />
-        )}
-      </div>
-    </div>
-  );
-}
-
 function toTimeInput(t: string | null | undefined): string {
   if (!t) return "";
   return t.slice(0, 5);
@@ -1076,6 +825,7 @@ function BusinessDetailContent() {
   const [fetchLoading, setFetchLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [hours, setHours] = useState<Record<string, HourEntry>>(defaultHours);
+  const [activeHoursDay, setActiveHoursDay] = useState<string>(DAYS_OF_WEEK[0].key);
   const [closedDays, setClosedDays] = useState<string[]>([]);
   const [closedDayRecords, setClosedDayRecords] = useState<ClosedDay[]>([]);
   const [photos, setPhotos] = useState<PhotoEntry[]>([]);
@@ -1185,17 +935,8 @@ function BusinessDetailContent() {
               category_jp: item.category_jp ?? "",
               category_en: item.category_en ?? "",
               discount_percentage: item.discount_percentage ?? "",
-              // API returns ISO datetime — extract HH:MM for the time input
-              discount_start_time: item.discount_start_time
-                ? (item.discount_start_time.includes("T")
-                    ? item.discount_start_time.split("T")[1].slice(0, 5)
-                    : item.discount_start_time.slice(0, 5))
-                : "",
-              discount_end_time: item.discount_end_time
-                ? (item.discount_end_time.includes("T")
-                    ? item.discount_end_time.split("T")[1].slice(0, 5)
-                    : item.discount_end_time.slice(0, 5))
-                : "",
+              discount_start_time: isoToDatetimeLocalInput(item.discount_start_time),
+              discount_end_time: isoToDatetimeLocalInput(item.discount_end_time),
               savedPhotosJp: (item.photos ?? [])
                 .filter((p) => !(p.label ?? "").startsWith("[en]"))
                 .map((p) => ({ id: p.id, url: p.image_url || p.image, label: p.label })),
@@ -1461,8 +1202,12 @@ function BusinessDetailContent() {
             category_jp: item.category_jp || undefined,
             category_en: item.category_en || undefined,
             discount_percentage: item.discount_percentage || null,
-            discount_start_time: item.discount_start_time || null,
-            discount_end_time: item.discount_end_time || null,
+            discount_start_time: item.discount_start_time
+              ? timeToISODatetime(item.discount_start_time)
+              : null,
+            discount_end_time: item.discount_end_time
+              ? timeToISODatetime(item.discount_end_time)
+              : null,
           });
           // Upload JP photos
           for (let pidx = 0; pidx < item.pendingFilesJp.length; pidx++) {
@@ -1677,15 +1422,45 @@ function BusinessDetailContent() {
     setSaveError(null);
     try {
       // 1. PATCH business profile
+      // Determine onboarding_step based on completed sections
+      let nextStep = 1;
+      if (
+        formData.business_name &&
+        formData.category &&
+        formData.address &&
+        formData.phone_number &&
+        heroPreview
+      ) {
+        nextStep = 2;
+      }
+      // Check hours (all days present)
+      const allDaysHaveHours = DAYS_OF_WEEK.every((day) => {
+        const h = hours[day.key];
+        return h && typeof h.open === "string" && typeof h.close === "string";
+      });
+      if (nextStep >= 2 && allDaysHaveHours) {
+        nextStep = 3;
+      }
+      // Check menu (at least one menu item for restaurants)
+      if (
+        nextStep >= 3 &&
+        business?.category === "restaurant" &&
+        menuItems.length > 0 &&
+        menuItems.every((item) => item.category_jp && item.category_en)
+      ) {
+        nextStep = 4;
+      } else if (nextStep >= 3 && business?.category !== "restaurant") {
+        nextStep = 4;
+      }
       await updateBusiness(businessId, {
         ...formData,
         ...(mapsUrl.trim() !== "" ? { maps_url: mapsUrl.trim() } : {}),
         ...(latitude !== "" ? { latitude: parseFloat(latitude) } : {}),
         ...(longitude !== "" ? { longitude: parseFloat(longitude) } : {}),
-        onboarding_step: Math.max(business?.onboarding_step || 2, 2),
+        onboarding_step: nextStep,
       });
 
-      // 2. Update or create hours depending on whether records already exist
+      // 2. Update existing hours and create only missing ones
       const hoursPayload = DAYS_OF_WEEK.map((day) => {
         const h = hours[day.key];
         const isClosed = h?.closed ?? false;
@@ -1699,11 +1474,16 @@ function BusinessDetailContent() {
         };
       });
 
-      const allHaveIds = hoursPayload.every((h) => "id" in h);
-      if (allHaveIds) {
+      const existingHoursPayload = hoursPayload.filter(
+        (hour): hour is (typeof hoursPayload)[number] & { id: number } =>
+          typeof hour.id === "number",
+      );
+      const newHoursPayload = hoursPayload.filter((hour) => typeof hour.id !== "number");
+
+      if (existingHoursPayload.length > 0) {
         await bulkUpdateBusinessHours(
           businessId,
-          hoursPayload as Array<{
+          existingHoursPayload as Array<{
             id: number;
             day_of_week: (typeof DAYS_OF_WEEK)[number]["api"];
             is_closed: boolean;
@@ -1712,8 +1492,23 @@ function BusinessDetailContent() {
             last_order_time: string | null;
           }>,
         );
-      } else {
-        await bulkCreateBusinessHours(businessId, hoursPayload);
+      }
+
+      if (newHoursPayload.length > 0) {
+        const created = await bulkCreateBusinessHours(businessId, newHoursPayload);
+        const createdHours: Array<{ id: number; day_of_week: string }> = Array.isArray(created)
+          ? created
+          : (created?.hours ?? []);
+        if (createdHours.length > 0) {
+          setHours((prev) => {
+            const next = { ...prev };
+            createdHours.forEach((hour) => {
+              const day = DAYS_OF_WEEK.find((candidate) => candidate.api === hour.day_of_week);
+              if (day) next[day.key] = { ...next[day.key], id: hour.id };
+            });
+            return next;
+          });
+        }
       }
 
       // 3. Delete old closed day records then re-create current selection
@@ -1861,7 +1656,6 @@ function BusinessDetailContent() {
             </div>
           </div>
 
-          {/* ── Address & Phone ──────────────────────────────────────────── */}
           <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
             <div className="grid sm:grid-cols-2 gap-6">
               <div>
@@ -1894,7 +1688,6 @@ function BusinessDetailContent() {
             </div>
           </div>
 
-          {/* ── Google Maps Location ─────────────────────────────────────── */}
           <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
             <div className="flex items-center gap-1.5 mb-3">
               <MapPin className="h-4 w-4 text-gray-500" />
@@ -1940,7 +1733,6 @@ function BusinessDetailContent() {
             </div>
           </div>
 
-          {/* ── Website ─────────────────────────────────────────────────── */}
           <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
             <div className="flex items-center gap-1 mb-2">
               <Label className="font-semibold text-gray-900">
@@ -1963,7 +1755,6 @@ function BusinessDetailContent() {
             </div>
           </div>
 
-          {/* ── Business Hours ───────────────────────────────────────────── */}
           <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
             <div className="flex items-center gap-1 mb-4">
               <Label className="font-semibold text-gray-900">
@@ -1971,94 +1762,65 @@ function BusinessDetailContent() {
               </Label>
               <span className="text-red-500 text-sm">必須</span>
             </div>
-            <div className="space-y-3">
-              {DAYS_OF_WEEK.map((day) => {
-                const h = hours[day.key];
-                return (
-                  <div
-                    key={day.key}
-                    className="flex items-center gap-4 pb-3 border-b border-gray-100 last:border-0 last:pb-0"
-                  >
-                    <div className="w-12 font-semibold text-gray-900 shrink-0">
+            <div className="overflow-hidden rounded-[24px] border border-[#2a2a2a] bg-white">
+              <div className="grid grid-cols-7 border-b border-[#2a2a2a] bg-[#dddddd]">
+                {DAYS_OF_WEEK.map((day, index) => {
+                  const isActive = activeHoursDay === day.key;
+                  return (
+                    <button
+                      key={day.key}
+                      type="button"
+                      onClick={() => setActiveHoursDay(day.key)}
+                      className={`px-2 py-3 text-center text-[clamp(1.1rem,2vw,1.75rem)] font-black tracking-[-0.04em] transition-colors ${
+                        index < DAYS_OF_WEEK.length - 1 ? "border-r border-[#2a2a2a]" : ""
+                      } ${isActive ? "bg-white text-black" : "bg-[#dddddd] text-black"}`}
+                    >
                       {day.short}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-4 px-5 py-5">
+                <div className="flex items-center gap-5">
+                  <Switch
+                    checked={!hours[activeHoursDay]?.closed}
+                    onCheckedChange={() => handleClosedDayToggle(activeHoursDay)}
+                    className="data-[state=checked]:bg-emerald-600 scale-125"
+                  />
+
+                  {hours[activeHoursDay]?.closed ? (
+                    <div className="rounded-[18px] border border-[#cfd6df] px-5 py-3 text-sm font-semibold text-gray-500">
+                      定休日 / Closed
                     </div>
-                    <Switch
-                      checked={!h?.closed}
-                      onCheckedChange={() => handleClosedDayToggle(day.key)}
-                      className="data-[state=checked]:bg-emerald-500"
-                    />
-                    {h?.closed ? (
-                      <span className="text-gray-500 text-sm ml-2">定休日</span>
-                    ) : (
-                      <div className="flex items-center gap-2 ml-auto flex-wrap">
-                        <Input
-                          type="time"
-                          value={h?.open || "11:00"}
-                          onChange={(e) =>
-                            handleHoursChange(day.key, "open", e.target.value)
-                          }
-                          className="w-28 border-gray-300 h-9"
+                  ) : (
+                    <div className="flex flex-1 flex-col gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <BusinessTimeSpinner
+                          value={hours[activeHoursDay]?.open || "11:00"}
+                          onChange={(value) => handleHoursChange(activeHoursDay, "open", value)}
+                          disabled={saving}
                         />
-                        <span className="text-gray-500">〜</span>
-                        <Input
-                          type="time"
-                          value={h?.close || "23:00"}
-                          onChange={(e) =>
-                            handleHoursChange(day.key, "close", e.target.value)
-                          }
-                          className="w-28 border-gray-300 h-9"
+                        <span className="text-[28px] font-medium text-gray-500 leading-none">~</span>
+                        <BusinessTimeSpinner
+                          value={hours[activeHoursDay]?.close || "23:00"}
+                          onChange={(value) => handleHoursChange(activeHoursDay, "close", value)}
+                          disabled={saving}
                         />
-                        <span className="text-gray-500 text-sm shrink-0">
-                          L.O.
-                        </span>
-                        <Input
-                          type="time"
-                          value={h?.lastOrder || "22:30"}
-                          onChange={(e) =>
-                            handleHoursChange(
-                              day.key,
-                              "lastOrder",
-                              e.target.value,
-                            )
-                          }
-                          className="w-28 border-gray-300 h-9"
+                        <span className="text-[17px] font-medium text-gray-500 leading-none">L.O.</span>
+                        <BusinessTimeSpinner
+                          value={hours[activeHoursDay]?.lastOrder || "22:30"}
+                          onChange={(value) => handleHoursChange(activeHoursDay, "lastOrder", value)}
+                          disabled={saving}
                         />
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* ── Regular Closed Days ──────────────────────────────────────── */}
-          <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
-            <Label className="font-semibold text-gray-900 mb-3 block">
-              定休日 / Regular Closed Days
-            </Label>
-            <div className="flex flex-wrap gap-2">
-              {DAYS_OF_WEEK.map((day) => {
-                const isSelected = closedDays.includes(day.key);
-                return (
-                  <button
-                    key={day.key}
-                    type="button"
-                    onClick={() => handleClosedDayToggle(day.key)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium border transition-all ${
-                      isSelected
-                        ? "bg-gray-900 border-gray-900 text-white"
-                        : "bg-white border-gray-200 text-gray-700 hover:border-gray-400"
-                    }`}
-                  >
-                    {isSelected && <Check className="h-3 w-3 shrink-0" />}
-                    {day.display}曜日
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ── Hero Banner ──────────────────────────────────────────────── */}
           <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
             <Label className="font-semibold text-gray-900 mb-3 block">
               ヒーロー画像 / Hero Banner
@@ -2149,7 +1911,6 @@ function BusinessDetailContent() {
             </p>
           </div>
 
-          {/* ── Photos ───────────────────────────────────────────────────── */}
           <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
             <Label className="font-semibold text-gray-900 mb-3 block">
               写真 / Photos
@@ -2210,7 +1971,6 @@ function BusinessDetailContent() {
             </p>
           </div>
 
-          {/* ── Menu Items (restaurant only) ─────────────────────────────── */}
           {business.category === "restaurant" && (
             <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
               <div className="flex items-center justify-between mb-3">
@@ -2255,101 +2015,44 @@ function BusinessDetailContent() {
             </div>
           )}
 
-          {/* ── Booking Links ────────────────────────────────────────────── */}
-          <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
-            <Label className="font-semibold text-gray-900 mb-1 block">
-              予約リンク / Booking Links
-            </Label>
-            {linksError && (
-              <Alert variant="destructive" className="mb-3">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{linksError}</AlertDescription>
-              </Alert>
-            )}
-            <div className="divide-y divide-gray-50">
-              {BOOKING_PLATFORMS.map((def) => (
-                <BookingRow
-                  key={def.key}
-                  def={def}
-                  state={booking[def.key]}
-                  onChange={(url) =>
-                    setBooking((prev) => ({
-                      ...prev,
-                      [def.key]: { ...prev[def.key], url },
-                    }))
-                  }
-                  onToggle={(enabled) =>
-                    setBooking((prev) => ({
-                      ...prev,
-                      [def.key]: { ...prev[def.key], enabled },
-                    }))
-                  }
-                  disabled={saving}
-                />
-              ))}
-            </div>
-          </div>
+          {linksError && (
+            <Alert variant="destructive" className="mb-3">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{linksError}</AlertDescription>
+            </Alert>
+          )}
 
-          {/* ── Social Links ─────────────────────────────────────────────── */}
-          <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                <Share2 className="h-4 w-4 text-gray-600" />
-              </div>
-              <Label className="font-semibold text-gray-900">
-                SNSリンク / Social Links
-              </Label>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-3">
-              <div className="space-y-3">
-                {SOCIAL_PLATFORMS_LEFT.map((def) => (
-                  <SocialRow
-                    key={def.key}
-                    def={def}
-                    state={social[def.key]}
-                    onChange={(url) =>
-                      setSocial((prev) => ({
-                        ...prev,
-                        [def.key]: { ...prev[def.key], url },
-                      }))
-                    }
-                    onToggle={(enabled) =>
-                      setSocial((prev) => ({
-                        ...prev,
-                        [def.key]: { ...prev[def.key], enabled },
-                      }))
-                    }
-                    disabled={saving}
-                  />
-                ))}
-              </div>
-              <div className="space-y-3">
-                {SOCIAL_PLATFORMS_RIGHT.map((def) => (
-                  <SocialRow
-                    key={def.key}
-                    def={def}
-                    state={social[def.key]}
-                    onChange={(url) =>
-                      setSocial((prev) => ({
-                        ...prev,
-                        [def.key]: { ...prev[def.key], url },
-                      }))
-                    }
-                    onToggle={(enabled) =>
-                      setSocial((prev) => ({
-                        ...prev,
-                        [def.key]: { ...prev[def.key], enabled },
-                      }))
-                    }
-                    disabled={saving}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
+          <BusinessLinksEditor
+            booking={booking}
+            social={social}
+            disabled={saving}
+            onBookingChange={(key, url) =>
+              setBooking((prev) => ({
+                ...prev,
+                [key]: { ...prev[key], url },
+              }))
+            }
+            onBookingToggle={(key, enabled) =>
+              setBooking((prev) => ({
+                ...prev,
+                [key]: { ...prev[key], enabled },
+              }))
+            }
+            onSocialChange={(key, url) =>
+              setSocial((prev) => ({
+                ...prev,
+                [key]: { ...prev[key], url },
+              }))
+            }
+            onSocialToggle={(key, enabled) =>
+              setSocial((prev) => ({
+                ...prev,
+                [key]: { ...prev[key], enabled },
+              }))
+            }
+          />
         </div>
 
-        {/* ── Footer Buttons ───────────────────────────────────────────── */}
         <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
           <Link href="/manage">
             <Button

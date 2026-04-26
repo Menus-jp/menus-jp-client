@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { timeToISODatetime } from "@/lib/utils";
+import { isoToDatetimeLocalInput, timeToISODatetime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,12 +24,9 @@ import {
 } from "lucide-react";
 import {
   BusinessProfile,
-  MenuItem,
   MenuItemHours,
 } from "@/lib/types/business";
 import { useBusinessApi } from "@/lib/hooks/useBusinessApi";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 type DayOfWeek =
   | "monday"
@@ -64,8 +61,8 @@ interface MenuItemDraft {
   category_jp: string;
   category_en: string;
   discount_percentage: string;
-  discount_start_time: string; // HH:MM (time only)
-  discount_end_time: string;   // HH:MM (time only)
+  discount_start_time: string; // YYYY-MM-DDTHH:MM
+  discount_end_time: string;   // YYYY-MM-DDTHH:MM
   /** JP photos already on the server */
   savedPhotosJp: { id: number; url: string; label?: string }[];
   pendingFilesJp: File[];
@@ -79,7 +76,13 @@ interface MenuItemDraft {
   showHours: boolean;
 }
 
-// ── Constants ──────────────────────────────────────────────────────────────────
+interface ApiErrorLike {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
 
 const DAYS: DayOfWeek[] = [
   "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
@@ -94,8 +97,6 @@ const DAY_LABELS: Record<DayOfWeek, { jp: string; en: string }> = {
   saturday:  { jp: "土", en: "Sat" },
   sunday:    { jp: "日", en: "Sun" },
 };
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
 
 function defaultHours(): HoursDraft[] {
   return DAYS.map((day) => ({
@@ -129,6 +130,22 @@ function mergeHoursWithDefaults(serverHours: MenuItemHours[]): HoursDraft[] {
       end_time: "21:00",
     };
   });
+}
+
+function minsToTime(mins: number): string {
+  const hours = Math.floor(mins / 60);
+  const minutes = mins % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function timeToMins(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + (minutes || 0);
+}
+
+function formatTimeWithPeriod(time: string): string {
+  const hour = Number(time.split(":")[0] || 0);
+  return `${time} ${hour < 12 ? "AM" : "PM"}`;
 }
 
 function emptyItem(): MenuItemDraft {
@@ -165,7 +182,6 @@ function PhotoThumb({
 }) {
   return (
     <div className="relative group w-20 h-20 shrink-0">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt={label || ""}
@@ -194,7 +210,48 @@ function PhotoThumb({
   );
 }
 
-// ── HoursEditor ────────────────────────────────────────────────────────────────
+function MenuTimeSpinner({
+  value,
+  onChange,
+  disabled,
+  className = "w-[172px]",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const adjust = (delta: number) => {
+    const next = Math.max(0, Math.min(1439, timeToMins(value) + delta));
+    onChange(minsToTime(next));
+  };
+
+  return (
+    <div className={`flex items-center overflow-hidden rounded-[18px] border border-[#cfd6df] bg-white select-none shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)] ${className}`}>
+      <span className="flex-1 px-5 py-3 text-center text-[15px] font-medium leading-none text-gray-900">
+        {formatTimeWithPeriod(value)}
+      </span>
+      <div className="flex shrink-0 flex-col border-l border-gray-200">
+        <button
+          type="button"
+          onClick={() => adjust(30)}
+          disabled={disabled}
+          className="flex items-center justify-center border-b border-gray-200 px-2 py-1.5 hover:bg-gray-50"
+        >
+          <ChevronUp className="h-3 w-3 text-gray-400" />
+        </button>
+        <button
+          type="button"
+          onClick={() => adjust(-30)}
+          disabled={disabled}
+          className="flex items-center justify-center px-2 py-1.5 hover:bg-gray-50"
+        >
+          <ChevronDown className="h-3 w-3 text-gray-400" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function HoursEditor({
   hours,
@@ -205,85 +262,96 @@ function HoursEditor({
   disabled: boolean;
   onChange: (hours: HoursDraft[]) => void;
 }) {
+  const [activeDay, setActiveDay] = useState<DayOfWeek>(DAYS[0]);
+
   const updateHour = (idx: number, patch: Partial<HoursDraft>) => {
     onChange(hours.map((h, i) => (i === idx ? { ...h, ...patch } : h)));
   };
 
+  const activeIndex = Math.max(
+    0,
+    hours.findIndex((hour) => hour.day_of_week === activeDay),
+  );
+  const activeHours = hours[activeIndex] ?? hours[0];
+  const activeLabel = DAY_LABELS[activeHours.day_of_week];
+
   return (
-    <div className="divide-y divide-gray-50">
-      {hours.map((h, idx) => {
-        const dayLabel = DAY_LABELS[h.day_of_week];
-        const isSat = h.day_of_week === "saturday";
-        const isSun = h.day_of_week === "sunday";
-        return (
-          <div
-            key={h.day_of_week}
-            className={`flex items-center gap-3 px-4 py-2.5 ${
-              h.is_closed ? "bg-gray-50/60" : "bg-white"
-            }`}
-          >
-            {/* Day label */}
-            <div className="w-10 shrink-0 text-center">
-              <span
-                className={`text-sm font-bold leading-none block ${
-                  isSat ? "text-blue-600" : isSun ? "text-red-500" : "text-gray-700"
-                }`}
-              >
-                {dayLabel.jp}
-              </span>
-              <span className="text-[10px] text-gray-400 leading-none mt-0.5 block">
-                {dayLabel.en}
-              </span>
+    <div className="overflow-hidden rounded-[24px] border border-[#cfd6df] bg-white">
+      <div className="grid grid-cols-7 border-b border-[#cfd6df] bg-[#dddddd]">
+        {DAYS.map((day, index) => {
+          const label = DAY_LABELS[day];
+          const isActive = activeDay === day;
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => setActiveDay(day)}
+              className={`px-2 py-3 text-center text-[clamp(1.1rem,2vw,1.5rem)] font-black tracking-[-0.04em] transition-colors ${
+                index < DAYS.length - 1 ? "border-r border-[#cfd6df]" : ""
+              } ${isActive ? "bg-white text-black" : "bg-[#dddddd] text-black"}`}
+            >
+              {label.en}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="space-y-4 px-5 py-5">
+        <div className="flex items-center gap-5">
+          <Switch
+            checked={!activeHours.is_closed}
+            onCheckedChange={(open) =>
+              updateHour(activeIndex, {
+                is_closed: !open,
+                closed_reason: open ? "" : activeHours.closed_reason,
+              })
+            }
+            disabled={disabled}
+            className="scale-125 data-[state=checked]:bg-emerald-600"
+          />
+
+          {activeHours.is_closed ? (
+            <div className="flex flex-1 items-center gap-3">
+              <div className="rounded-[18px] border border-[#cfd6df] px-5 py-3 text-sm font-semibold text-gray-500">
+                定休日 / Closed
+              </div>
+              <Input
+                type="text"
+                placeholder="理由 (任意) e.g. 祝日"
+                value={activeHours.closed_reason}
+                onChange={(e) =>
+                  updateHour(activeIndex, { closed_reason: e.target.value })
+                }
+                disabled={disabled}
+                className="h-[52px] flex-1 rounded-[18px] border-[#cfd6df] bg-white text-sm"
+              />
             </div>
-
-            {/* Toggle */}
-            <Switch
-              checked={!h.is_closed}
-              onCheckedChange={(open) => updateHour(idx, { is_closed: !open })}
-              disabled={disabled}
-              className="data-[state=checked]:bg-emerald-500 shrink-0"
-            />
-
-            {/* Time range or closed */}
-            {h.is_closed ? (
-              <div className="flex-1 flex items-center gap-2">
-                <span className="text-xs text-gray-400 shrink-0">定休日</span>
-                <Input
-                  type="text"
-                  placeholder="理由 (任意) e.g. 祝日"
-                  value={h.closed_reason}
-                  onChange={(e) => updateHour(idx, { closed_reason: e.target.value })}
+          ) : (
+            <div className="flex flex-1 flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <MenuTimeSpinner
+                  value={activeHours.start_time}
+                  onChange={(value) => updateHour(activeIndex, { start_time: value })}
                   disabled={disabled}
-                  className="flex-1 h-7 text-xs border-dashed border-gray-200 bg-transparent placeholder:text-gray-300"
+                />
+                <span className="text-[28px] font-medium leading-none text-gray-500">~</span>
+                <MenuTimeSpinner
+                  value={activeHours.end_time}
+                  onChange={(value) => updateHour(activeIndex, { end_time: value })}
+                  disabled={disabled}
                 />
               </div>
-            ) : (
-              <div className="flex-1 flex items-center gap-2">
-                <Input
-                  type="time"
-                  value={h.start_time}
-                  onChange={(e) => updateHour(idx, { start_time: e.target.value })}
-                  disabled={disabled}
-                  className="w-[6.5rem] h-7 text-xs text-center tabular-nums"
-                />
-                <span className="text-gray-300 text-sm select-none">–</span>
-                <Input
-                  type="time"
-                  value={h.end_time}
-                  onChange={(e) => updateHour(idx, { end_time: e.target.value })}
-                  disabled={disabled}
-                  className="w-[6.5rem] h-7 text-xs text-center tabular-nums"
-                />
-              </div>
-            )}
-          </div>
-        );
-      })}
+            </div>
+          )}
+        </div>
+
+        <p className="pl-16 text-sm font-medium text-gray-400">
+          {activeLabel.jp} / {activeLabel.en}
+        </p>
+      </div>
     </div>
   );
 }
-
-// ── MenuItemCard ───────────────────────────────────────────────────────────────
 
 interface MenuItemCardProps {
   item: MenuItemDraft;
@@ -596,9 +664,9 @@ function MenuItemCard({
                 />
               </div>
               <div>
-                <Label className="text-[11px] text-gray-400 mb-1.5 block">開始時間</Label>
+                <Label className="text-[11px] text-gray-400 mb-1.5 block">開始日時</Label>
                 <Input
-                  type="time"
+                  type="datetime-local"
                   value={item.discount_start_time}
                   onChange={(e) => onUpdate({ discount_start_time: e.target.value })}
                   disabled={disabled}
@@ -606,9 +674,9 @@ function MenuItemCard({
                 />
               </div>
               <div>
-                <Label className="text-[11px] text-gray-400 mb-1.5 block">終了時間</Label>
+                <Label className="text-[11px] text-gray-400 mb-1.5 block">終了日時</Label>
                 <Input
-                  type="time"
+                  type="datetime-local"
                   value={item.discount_end_time}
                   onChange={(e) => onUpdate({ discount_end_time: e.target.value })}
                   disabled={disabled}
@@ -690,8 +758,6 @@ function MenuItemCard({
   );
 }
 
-// ── Step4Form ──────────────────────────────────────────────────────────────────
-
 export function Step4Form({
   business,
   onSubmit,
@@ -734,17 +800,8 @@ export function Step4Form({
               category_jp: item.category_jp ?? "",
               category_en: item.category_en ?? "",
               discount_percentage: item.discount_percentage ?? "",
-              // API returns ISO datetime — extract HH:MM for the time input
-              discount_start_time: item.discount_start_time
-                ? (item.discount_start_time.includes("T")
-                    ? item.discount_start_time.split("T")[1].slice(0, 5)
-                    : item.discount_start_time.slice(0, 5))
-                : "",
-              discount_end_time: item.discount_end_time
-                ? (item.discount_end_time.includes("T")
-                    ? item.discount_end_time.split("T")[1].slice(0, 5)
-                    : item.discount_end_time.slice(0, 5))
-                : "",
+              discount_start_time: isoToDatetimeLocalInput(item.discount_start_time),
+              discount_end_time: isoToDatetimeLocalInput(item.discount_end_time),
               savedPhotosJp: (item.photos ?? [])
                 .filter((p) => !(p.label ?? "").startsWith("[en]"))
                 .map((p) => ({ id: p.id, url: p.image_url || p.image, label: p.label })),
@@ -832,7 +889,6 @@ export function Step4Form({
           continue;
 
         if (!item.id) {
-          // ── New item ── POST /api/menu-items/ with photos in the same request
           const fd = new FormData();
           fd.append("business", String(business.id));
           if (item.category_jp) fd.append("category_jp", item.category_jp);
@@ -892,8 +948,12 @@ export function Step4Form({
             category_jp: item.category_jp || undefined,
             category_en: item.category_en || undefined,
             discount_percentage: item.discount_percentage || null,
-            discount_start_time: item.discount_start_time || null,
-            discount_end_time: item.discount_end_time || null,
+            discount_start_time: item.discount_start_time
+              ? timeToISODatetime(item.discount_start_time)
+              : null,
+            discount_end_time: item.discount_end_time
+              ? timeToISODatetime(item.discount_end_time)
+              : null,
           });
 
           // Upload JP photos
@@ -992,9 +1052,10 @@ export function Step4Form({
         }
       }
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const apiError = err as ApiErrorLike;
       setMenuError(
-        err?.response?.data?.message || "メニューの保存に失敗しました",
+        apiError.response?.data?.message || "メニューの保存に失敗しました",
       );
       return false;
     } finally {
@@ -1076,10 +1137,8 @@ export function Step4Form({
         </Alert>
       )}
 
-      {/* ── Menu Section (restaurants only) ─────────────────────────────── */}
       {isRestaurant && (
         <div className="space-y-4">
-          {/* Section header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center">
@@ -1160,7 +1219,6 @@ export function Step4Form({
         </div>
       )}
 
-      {/* ── Plan Selection ───────────────────────────────────────────────── */}
       <div className="p-5 border border-gray-200 rounded-2xl bg-stone-50">
         <h3 className="text-base font-semibold text-gray-900 mb-4">
           プラン選択 / Choose Your Plan
@@ -1229,7 +1287,6 @@ export function Step4Form({
         </div>
       )}
 
-      {/* ── Publish Button ───────────────────────────────────────────────── */}
       <div className="pt-2">
         <Button
           type="submit"

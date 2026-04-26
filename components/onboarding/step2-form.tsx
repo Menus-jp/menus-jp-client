@@ -9,10 +9,8 @@ import {
   Loader2,
   ChevronRight,
   Globe,
-  Check,
   ChevronUp,
   ChevronDown,
-  Upload,
   X,
   Plus,
 } from "lucide-react";
@@ -63,14 +61,21 @@ function timeToMins(time: string): number {
   return h * 60 + (m || 0);
 }
 
+function formatTimeWithPeriod(time: string): string {
+  const hour = Number(time.split(":")[0] || 0);
+  return `${time} ${hour < 12 ? "AM" : "PM"}`;
+}
+
 function TimeSpinner({
   value,
   onChange,
   disabled,
+  className = "w-[172px]",
 }: {
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
+  className?: string;
 }) {
   const adjust = (delta: number) => {
     const next = Math.max(0, Math.min(1439, timeToMins(value) + delta)); // 1439 = 23:59
@@ -78,15 +83,15 @@ function TimeSpinner({
   };
 
   return (
-    <div className="flex items-center border border-gray-300 rounded-lg bg-white w-[80px] select-none overflow-hidden">
-      <span className="flex-1 text-sm font-medium px-2.5 py-2 text-gray-900 leading-none">
-        {value}
+    <div className={`flex items-center rounded-[18px] border border-[#cfd6df] bg-white select-none overflow-hidden shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)] ${className}`}>
+      <span className="flex-1 px-5 py-3 text-center text-[15px] font-medium text-gray-900 leading-none">
+        {formatTimeWithPeriod(value)}
       </span>
       <div className="flex flex-col border-l border-gray-200 shrink-0">
         <button
           type="button"
           onClick={() => adjust(30)}
-          className="flex items-center justify-center px-1.5 py-1 hover:bg-gray-50 border-b border-gray-200"
+          className="flex items-center justify-center px-2 py-1.5 hover:bg-gray-50 border-b border-gray-200"
           disabled={disabled}
         >
           <ChevronUp className="h-3 w-3 text-gray-400" />
@@ -94,7 +99,7 @@ function TimeSpinner({
         <button
           type="button"
           onClick={() => adjust(-30)}
-          className="flex items-center justify-center px-1.5 py-1 hover:bg-gray-50"
+          className="flex items-center justify-center px-2 py-1.5 hover:bg-gray-50"
           disabled={disabled}
         >
           <ChevronDown className="h-3 w-3 text-gray-400" />
@@ -112,6 +117,7 @@ export function Step2Form({
   isNew,
 }: Step2FormProps) {
   const [website, setWebsite] = useState(business.website || "");
+  const [activeHoursDay, setActiveHoursDay] = useState<string>(DAYS_OF_WEEK[0].key);
   const [hours, setHours] = useState<Record<string, HoursEntry>>(() => {
     const init: Record<string, HoursEntry> = {};
     DAYS_OF_WEEK.forEach((d) => {
@@ -123,17 +129,12 @@ export function Step2Form({
   // IDs of existing ClosedDay records (needed to delete before recreating)
   const [closedDayRecords, setClosedDayRecords] = useState<{ id: number; day_of_week: string }[]>([]);
 
-  // Photo state — tracks server-persisted photos (id + url)
-  const [heroPhoto, setHeroPhoto] = useState<PhotoEntry | null>(null);
-  const [heroPreview, setHeroPreview] = useState<string | null>(null);
-  const [heroUploading, setHeroUploading] = useState(false);
   const [galleryPhotos, setGalleryPhotos] = useState<PhotoEntry[]>([]);
   const [galleryUploading, setGalleryUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [hoursError, setHoursError] = useState<string | null>(null);
   const [deletingPhotoId, setDeletingPhotoId] = useState<number | null>(null);
 
-  const heroInputRef = useRef<HTMLInputElement>(null);
   const photosInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing photos, hours and closed days on mount
@@ -147,9 +148,7 @@ export function Step2Form({
       .then(([photosRes, hoursRes, closedRes]) => {
         // Photos
         const photos: any[] = photosRes.data.results ?? photosRes.data;
-        const hero = photos.find((p: any) => p.is_hero);
         const gallery = photos.filter((p: any) => !p.is_hero);
-        if (hero) setHeroPhoto({ id: hero.id, url: hero.image_url || hero.image });
         setGalleryPhotos(gallery.map((p: any) => ({ id: p.id, url: p.image_url || p.image })));
 
         // Hours — map API records into state (preserving IDs)
@@ -184,7 +183,7 @@ export function Step2Form({
       .catch(() => {
         // non-fatal — fall back to defaults
       });
-  }, [business.id]);
+  }, [business.id, isNew]);
 
   const toggleClosed = (dayKey: string) => {
     setClosedDays((prev) =>
@@ -200,68 +199,6 @@ export function Step2Form({
     value: string,
   ) => {
     setHours((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }));
-  };
-
-  const handleHeroUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    // Show local preview immediately — visible even during upload
-    const localUrl = URL.createObjectURL(file);
-    setHeroPreview(localUrl);
-    setPhotoError(null);
-    setHeroUploading(true);
-    let deletedPrev = false;
-    try {
-      // Replace existing hero: delete first
-      if (heroPhoto) {
-        await apiClient.delete(`/business-photos/${heroPhoto.id}/`);
-        deletedPrev = true;
-        // Don't clear heroPhoto state yet — only after new upload succeeds
-      }
-      const fd = new FormData();
-      fd.append("business", String(business.id));
-      fd.append("image", file);
-      fd.append("is_hero", "true");
-      fd.append("display_order", "0");
-      const res = await apiClient.post("/business-photos/", fd, {
-        headers: { "Content-Type": undefined },
-      });
-      setHeroPhoto({ id: res.data.id, url: res.data.image_url });
-      setHeroPreview(null); // server URL takes over
-    } catch (err: any) {
-      const msg =
-        err.response?.data?.message ||
-        "ヒーロー画像のアップロードに失敗しました";
-      setPhotoError(
-        deletedPrev
-          ? `${msg}。前の画像は削除されました。再度アップロードしてください。`
-          : msg,
-      );
-      setHeroPreview(null);
-      if (deletedPrev) {
-        // Old hero was deleted on the server but new upload failed — reflect that in state
-        setHeroPhoto(null);
-      }
-      // If !deletedPrev: delete itself failed, server still has the old photo, keep heroPhoto
-    } finally {
-      setHeroUploading(false);
-      if (heroInputRef.current) heroInputRef.current.value = "";
-    }
-  };
-
-  const handleRemoveHero = async () => {
-    if (!heroPhoto) return;
-    setPhotoError(null);
-    setHeroUploading(true);
-    try {
-      await apiClient.delete(`/business-photos/${heroPhoto.id}/`);
-      setHeroPhoto(null);
-      setHeroPreview(null);
-    } catch (err: any) {
-      setPhotoError(err.response?.data?.message || "削除に失敗しました");
-    } finally {
-      setHeroUploading(false);
-    }
   };
 
   const handlePhotosUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -323,13 +260,13 @@ export function Step2Form({
     return `${hh}:${mm}:00`;
   };
 
+  const activeDayHours = hours[activeHoursDay];
+  const activeDayClosed = closedDays.includes(activeHoursDay);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setHoursError(null);
 
-    // Decide between bulk_create and bulk_update based on whether hours have IDs
-    const existingIds = DAYS_OF_WEEK.map((d) => hours[d.key]?.id).filter(Boolean);
-    const allHaveIds = existingIds.length === DAYS_OF_WEEK.length;
     const payload = DAYS_OF_WEEK.map((day) => {
       const isClosed = closedDays.includes(day.key);
       const dayHours = hours[day.key];
@@ -344,17 +281,25 @@ export function Step2Form({
     });
 
     try {
-      if (allHaveIds) {
+      const existingHoursPayload = payload.filter(
+        (hour): hour is (typeof payload)[number] & { id: number } =>
+          typeof hour.id === "number",
+      );
+      const newHoursPayload = payload.filter((hour) => typeof hour.id !== "number");
+
+      if (existingHoursPayload.length > 0) {
         await apiClient.patch("/business-hours/bulk_update/", {
           business: business.id,
-          hours: payload,
+          hours: existingHoursPayload,
         });
-      } else {
+      }
+
+      if (newHoursPayload.length > 0) {
         const res = await apiClient.post("/business-hours/bulk_create/", {
           business: business.id,
-          hours: payload,
+          hours: newHoursPayload,
         });
-        // Store returned IDs so a retry uses bulk_update instead of bulk_create
+
         const created: any[] = Array.isArray(res.data)
           ? res.data
           : (res.data?.hours ?? []);
@@ -442,76 +387,65 @@ export function Step2Form({
             </span>
           </div>
 
-          {/* Column headers — mirrors row structure exactly */}
-          <div className="flex items-center gap-6 mb-2">
-            <div className="w-8 shrink-0" />
-            <div className="w-10 shrink-0" />
-            <div className="w-[80px] text-center text-xs font-semibold text-gray-500">
-              開店
+          <div className="overflow-hidden rounded-[24px] border border-[#2a2a2a] bg-white">
+            <div className="grid grid-cols-7 border-b border-[#2a2a2a] bg-[#dddddd]">
+              {DAYS_OF_WEEK.map((day, index) => {
+                const isActive = activeHoursDay === day.key;
+                return (
+                  <button
+                    key={day.key}
+                    type="button"
+                    onClick={() => setActiveHoursDay(day.key)}
+                    className={`px-2 py-3 text-center text-[clamp(1.1rem,2vw,1.75rem)] font-black tracking-[-0.04em] transition-colors ${
+                      index < DAYS_OF_WEEK.length - 1 ? "border-r border-[#2a2a2a]" : ""
+                    } ${isActive ? "bg-white text-black" : "bg-[#dddddd] text-black"}`}
+                  >
+                    {day.short}
+                  </button>
+                );
+              })}
             </div>
-            <div className="w-5 shrink-0" />
-            <div className="w-[80px] text-center text-xs font-semibold text-gray-500">
-              閉店
-            </div>
-            <div className="w-[80px] text-center text-xs font-semibold text-gray-500">
-              L.O.（ラストオーダー）
+
+            <div className="space-y-4 px-5 py-5">
+              <div className="flex items-center gap-5">
+                <Switch
+                  checked={!activeDayClosed}
+                  onCheckedChange={() => toggleClosed(activeHoursDay)}
+                  disabled={loading}
+                  className="data-[state=checked]:bg-emerald-600 scale-125"
+                />
+
+                {activeDayClosed ? (
+                  <div className="rounded-[18px] border border-[#cfd6df] px-5 py-3 text-sm font-semibold text-gray-500">
+                    定休日 / Closed
+                  </div>
+                ) : (
+                  <div className="flex flex-1 flex-col gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <TimeSpinner
+                        value={activeDayHours?.open || "11:00"}
+                        onChange={(v) => handleHoursChange(activeHoursDay, "open", v)}
+                        disabled={loading}
+                      />
+                      <span className="text-[28px] font-medium text-gray-500 leading-none">~</span>
+                      <TimeSpinner
+                        value={activeDayHours?.close || "23:00"}
+                        onChange={(v) => handleHoursChange(activeHoursDay, "close", v)}
+                        disabled={loading}
+                      />
+                      <span className="text-[17px] font-medium text-gray-500 leading-none">L.O.</span>
+                      <TimeSpinner
+                        value={activeDayHours?.lastOrder || "22:30"}
+                        onChange={(v) => handleHoursChange(activeHoursDay, "lastOrder", v)}
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            {DAYS_OF_WEEK.map((day) => {
-              const isClosed = closedDays.includes(day.key);
-              const dayData = hours[day.key];
-              return (
-                <div key={day.key} className="flex items-center gap-9">
-                  {/* Day label */}
-                  <div className="w-8 shrink-0 flex items-baseline gap-4">
-                    <span className="text-sm font-semibold text-gray-900">
-                      {day.display}
-                    </span>
-                    <span className="text-xs text-gray-400">{day.short}</span>
-                  </div>
-                  {/* Toggle */}
-                  <div className="w-10 shrink-0">
-                    <Switch
-                      checked={!isClosed}
-                      onCheckedChange={() => toggleClosed(day.key)}
-                      disabled={loading}
-                      className="data-[state=checked]:bg-emerald-500"
-                    />
-                  </div>
-                  {isClosed ? (
-                    <div className="flex-1 text-sm text-gray-400 font-medium">
-                      定休日
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-6">
-                      <TimeSpinner
-                        value={dayData?.open || "11:00"}
-                        onChange={(v) => handleHoursChange(day.key, "open", v)}
-                        disabled={loading}
-                      />
-                      <span className="text-sm text-gray-400 w-5 text-center">
-                        〜
-                      </span>
-                      <TimeSpinner
-                        value={dayData?.close || "23:00"}
-                        onChange={(v) => handleHoursChange(day.key, "close", v)}
-                        disabled={loading}
-                      />
-                      <TimeSpinner
-                        value={dayData?.lastOrder || "23:59"}
-                        onChange={(v) =>
-                          handleHoursChange(day.key, "lastOrder", v)
-                        }
-                        disabled={loading}
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
           <p className="text-xs text-gray-400 mt-4">
             24時間営業の場合は、同じ時間を設定してください
           </p>
@@ -519,52 +453,6 @@ export function Step2Form({
 
         {/* Right column */}
         <div className="space-y-5 lg:col-span-1">
-          {/* Closed Days */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h3 className="font-semibold text-gray-900 text-base mb-4">
-              定休日 / Closed Days
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              {DAYS_OF_WEEK.map((day) => {
-                const isSelected = closedDays.includes(day.key);
-                return (
-                  <button
-                    key={day.key}
-                    type="button"
-                    onClick={() => toggleClosed(day.key)}
-                    disabled={loading}
-                    className={`flex items-center gap-1.5 px-2.5 py-2 rounded-full text-xs font-medium border transition-all ${
-                      isSelected
-                        ? "bg-gray-900 border-gray-900 text-white"
-                        : "bg-white border-gray-200 text-gray-700 hover:border-gray-400"
-                    }`}
-                  >
-                    <span
-                      className={`flex items-center justify-center w-3.5 h-3.5 rounded-full border shrink-0 ${
-                        isSelected ? "border-white" : "border-gray-300"
-                      }`}
-                    >
-                      {isSelected && (
-                        <Check className="h-2 w-2 text-gray-900" />
-                      )}
-                    </span>
-                    <span>
-                      {day.display}曜日 {day.short}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              className="mt-3 text-xs font-medium text-gray-500 hover:text-gray-900 flex items-center gap-1"
-              disabled={loading}
-            >
-              <Plus className="h-3 w-3" />
-              追加
-            </button>
-          </div>
-
           {/* Website */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <div className="flex items-center gap-1.5 mb-3">
@@ -592,7 +480,7 @@ export function Step2Form({
         <h3 className="font-semibold text-gray-900 text-base mb-5">
           写真 / Photos
         </h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
           {/* Additional photos */}
           <div>
             <p className="text-sm font-medium text-gray-700 mb-3">
@@ -660,7 +548,7 @@ export function Step2Form({
       <div className="pt-2">
         <Button
           type="submit"
-          disabled={loading || heroUploading || galleryUploading}
+          disabled={loading || galleryUploading}
           className="w-full bg-gray-900 hover:bg-gray-800 text-white h-12 rounded-xl font-semibold text-base flex items-center justify-center gap-2"
         >
           {loading ? (
