@@ -86,8 +86,10 @@ export function useBusinessApi() {
     [],
   );
 
+  type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image?: File | null };
+
   const updateBusiness = useCallback(
-    async (id: number, data: Partial<BusinessProfile> & { hero_image?: File | null }) => {
+    async (id: number, data: BusinessPatch) => {
       try {
         setLoading(true);
         const fd = new FormData();

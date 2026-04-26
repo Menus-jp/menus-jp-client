@@ -38,6 +38,9 @@ function OnboardingContent() {
     }
   }, [successMessage]);
 
+// Patch type that allows hero_image as File, not string
+type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image?: File | null };
+
   const handleStep1Submit = async (data: {
     business_name: string;
     category: string;
@@ -52,15 +55,15 @@ function OnboardingContent() {
 
 
       if (business) {
-        // PATCH with hero_image as top-level field
-        const patch: Partial<BusinessProfile> & { hero_image?: File | null } = {
+        // PATCH with hero_image as File, not string
+        const patch: BusinessPatch = {
           business_name: data.business_name,
           category: data.category as BusinessProfile["category"],
           address: data.address,
           phone_number: data.phone_number,
           latitude: data.latitude,
           longitude: data.longitude,
-          hero_image: data.hero_image,
+          ...(data.heroImage ? { hero_image: data.heroImage } : {}),
         };
         const updated = await updateBusiness(business.id, patch);
         const merged = { ...business, ...updated };
@@ -79,7 +82,7 @@ function OnboardingContent() {
         phone_number: data.phone_number,
         latitude: data.latitude,
         longitude: data.longitude,
-        hero_image: data.hero_image,
+        hero_image: data.heroImage,
       });
       let merged = {
         ...newBusiness,
@@ -98,7 +101,9 @@ function OnboardingContent() {
     if (!business) return;
     try {
       clearError();
-      const updated = await updateBusiness(business.id, data);
+      // Remove hero_image if present (string type is not allowed)
+      const { hero_image, ...rest } = data;
+      const updated = await updateBusiness(business.id, { ...rest });
       setBusiness((prev) => ({ ...prev!, ...updated }));
       setSuccessMessage("Contact information saved!");
       setCurrentStep(3);
@@ -111,7 +116,9 @@ function OnboardingContent() {
     if (!business) return;
     try {
       clearError();
-      const updated = await updateBusiness(business.id, data);
+      // Remove hero_image if present (string type is not allowed)
+      const { hero_image, ...rest } = data;
+      const updated = await updateBusiness(business.id, { ...rest });
       setBusiness((prev) => ({ ...prev!, ...updated }));
       setSuccessMessage("Links configured!");
       setCurrentStep(4);
@@ -124,7 +131,9 @@ function OnboardingContent() {
     if (!business) return;
     try {
       clearError();
-      const updated = await updateBusiness(business.id, data);
+      // Remove hero_image if present (string type is not allowed)
+      const { hero_image, ...rest } = data;
+      const updated = await updateBusiness(business.id, { ...rest });
       setBusiness((prev) => ({ ...prev!, ...updated }));
       setSuccessMessage("Plan selected!");
 

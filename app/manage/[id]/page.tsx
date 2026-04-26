@@ -1424,12 +1424,13 @@ function BusinessDetailContent() {
       // 1. PATCH business profile
       // Determine onboarding_step based on completed sections
       let nextStep = 1;
+      const heroPhoto = photos.find((p) => p.is_hero);
       if (
         formData.business_name &&
         formData.category &&
         formData.address &&
         formData.phone_number &&
-        heroPreview
+        heroPhoto
       ) {
         nextStep = 2;
       }
@@ -1452,12 +1453,15 @@ function BusinessDetailContent() {
       } else if (nextStep >= 3 && business?.category !== "restaurant") {
         nextStep = 4;
       }
+      // Remove hero_image from formData if present (should not be string)
+      const { hero_image, ...formDataRest } = formData;
       await updateBusiness(businessId, {
-        ...formData,
+        ...formDataRest,
         ...(mapsUrl.trim() !== "" ? { maps_url: mapsUrl.trim() } : {}),
         ...(latitude !== "" ? { latitude: parseFloat(latitude) } : {}),
         ...(longitude !== "" ? { longitude: parseFloat(longitude) } : {}),
         onboarding_step: nextStep,
+        hero_image: undefined, // Always pass as File | null | undefined
       });
 
       // 2. Update existing hours and create only missing ones
