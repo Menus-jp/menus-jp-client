@@ -7,12 +7,15 @@ import Link from "next/link";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { useBusinessApi } from "@/lib/hooks/useBusinessApi";
 import apiClient from "@/lib/api/auth";
-import {
+import{
   ALL_SOCIAL_PLATFORMS,
   BOOKING_PLATFORMS,
+  ORDER_PLATFORMS,
   BusinessLinksEditor,
   BookingPlatformKey,
+  OrderPlatformKey,
   initBookingState,
+  initOrderState,
   initSocialState,
   LinkState,
   SocialPlatformKey,
@@ -46,6 +49,7 @@ import {
   BusinessDetail,
   ClosedDay,
   MenuItemHours,
+  OrderLink,
 } from "@/lib/types/business";
 import { Switch } from "@/components/ui/switch";
 
@@ -72,6 +76,10 @@ type HourEntry = {
   open: string;
   close: string;
   lastOrder: string;
+  open2?: string;
+  close2?: string;
+  lastOrder2?: string;
+  hasSecondShift?: boolean;
   closed: boolean;
 };
 type PhotoEntry = { id: number; url: string; is_hero: boolean };
@@ -92,34 +100,69 @@ function BusinessTimeSpinner({
   disabled?: boolean;
   className?: string;
 }) {
+  const [editing, setEditing] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
   const adjust = (delta: number) => {
-    const [hours, minutes] = value.split(":").map(Number);
-    const next = Math.max(0, Math.min(1439, (hours * 60 + (minutes || 0)) + delta));
-    const hh = String(Math.floor(next / 60)).padStart(2, "0");
-    const mm = String(next % 60).padStart(2, "0");
-    onChange(`${hh}:${mm}`);
+    const [h, m] = value.split(":").map(Number);
+    const next = Math.max(0, Math.min(1439, h * 60 + (m || 0) + delta));
+    onChange(`${String(Math.floor(next / 60)).padStart(2, "0")}:${String(next % 60).padStart(2, "0")}`);
   };
 
+  const commitDraft = (v: string) => {
+    const match = v.match(/^(\d{1,2}):?(\d{2})$/);
+    if (match) {
+      const h = Math.min(23, Number(match[1]));
+      const m = Math.min(59, Number(match[2]));
+      onChange(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+    setEditing(false);
+  };
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      adjust(e.deltaY > 0 ? -30 : 30);
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, [value]);
+
   return (
-    <div className={`flex items-center rounded-[18px] border border-[#cfd6df] bg-white select-none overflow-hidden shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)] ${className}`}>
-      <span className="flex-1 px-5 py-3 text-center text-[15px] font-medium text-gray-900 leading-none">
-        {formatTimeWithPeriod(value)}
-      </span>
-      <div className="flex flex-col border-l border-gray-200 shrink-0">
-        <button
-          type="button"
-          onClick={() => adjust(30)}
+    <div
+      ref={ref}
+      className={`flex items-center rounded-[18px] border border-[#cfd6df] bg-white select-none overflow-hidden shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)] ${className}`}
+    >
+      {editing ? (
+        <input
+          autoFocus
+          type="text"
+          defaultValue={value}
+          onBlur={(e) => commitDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitDraft((e.target as HTMLInputElement).value);
+            if (e.key === "Escape") setEditing(false);
+            if (e.key === "ArrowUp") { e.preventDefault(); adjust(30); }
+            if (e.key === "ArrowDown") { e.preventDefault(); adjust(-30); }
+          }}
+          className="flex-1 px-5 py-3 text-center text-[15px] font-medium text-gray-900 leading-none outline-none w-full"
           disabled={disabled}
-          className="flex items-center justify-center px-2 py-1.5 hover:bg-gray-50 border-b border-gray-200"
+        />
+      ) : (
+        <span
+          className="flex-1 px-5 py-3 text-center text-[15px] font-medium text-gray-900 leading-none cursor-text"
+          onClick={() => setEditing(true)}
         >
+          {formatTimeWithPeriod(value)}
+        </span>
+      )}
+      <div className="flex flex-col border-l border-gray-200 shrink-0">
+        <button type="button" onClick={() => adjust(30)} disabled={disabled} className="flex items-center justify-center px-2 py-1.5 hover:bg-gray-50 border-b border-gray-200">
           <ChevronUp className="h-3 w-3 text-gray-400" />
         </button>
-        <button
-          type="button"
-          onClick={() => adjust(-30)}
-          disabled={disabled}
-          className="flex items-center justify-center px-2 py-1.5 hover:bg-gray-50"
-        >
+        <button type="button" onClick={() => adjust(-30)} disabled={disabled} className="flex items-center justify-center px-2 py-1.5 hover:bg-gray-50">
           <ChevronDown className="h-3 w-3 text-gray-400" />
         </button>
       </div>
@@ -777,6 +820,7 @@ function defaultHours(): Record<string, HourEntry> {
       open: "11:00",
       close: "23:00",
       lastOrder: "22:30",
+      hasSecondShift: true,
       closed: false,
     };
   });
@@ -829,6 +873,7 @@ function BusinessDetailContent() {
   const [closedDays, setClosedDays] = useState<string[]>([]);
   const [closedDayRecords, setClosedDayRecords] = useState<ClosedDay[]>([]);
   const [photos, setPhotos] = useState<PhotoEntry[]>([]);
+  const [heroImage, setHeroImage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -844,11 +889,10 @@ function BusinessDetailContent() {
   const [menuItems, setMenuItems] = useState<MenuItemDraft[]>([]);
   const [menuError, setMenuError] = useState<string | null>(null);
   const [savingMenu, setSavingMenu] = useState(false);
-  // Booking & social link state
-  const [booking, setBooking] =
-    useState<Record<BookingPlatformKey, LinkState>>(initBookingState);
-  const [social, setSocial] =
-    useState<Record<SocialPlatformKey, LinkState>>(initSocialState);
+  // Booking, order & social link state
+  const [booking, setBooking] = useState<Record<BookingPlatformKey, LinkState>>(initBookingState);
+  const [order, setOrder] = useState<Record<OrderPlatformKey, LinkState>>(initOrderState);
+  const [social, setSocial] = useState<Record<SocialPlatformKey, LinkState>>(initSocialState);
   const [linksError, setLinksError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -887,6 +931,10 @@ function BusinessDetailContent() {
             open: toTimeInput(h.opening_time) || "11:00",
             close: toTimeInput(h.closing_time) || "23:00",
             lastOrder: toTimeInput(h.last_order_time) || "22:30",
+            open2: h.opening_time_2 ? toTimeInput(h.opening_time_2) : undefined,
+            close2: h.closing_time_2 ? toTimeInput(h.closing_time_2) : undefined,
+            lastOrder2: h.last_order_time_2 ? toTimeInput(h.last_order_time_2) : undefined,
+            hasSecondShift: !!(h.opening_time_2 && h.closing_time_2),
             closed: h.is_closed,
           };
         });
@@ -900,14 +948,21 @@ function BusinessDetailContent() {
           .filter(Boolean) as string[];
         setClosedDays(closedKeys);
 
-        // Map photos
-        setPhotos(
-          (data.photos ?? []).map((p) => ({
-            id: p.id,
-            url: p.image_url || p.image,
-            is_hero: p.is_hero,
-          })),
-        );
+        // Map photos and extract hero image
+        const allPhotos = (data.photos ?? []).map((p) => ({
+          id: p.id,
+          url: p.image_url || p.image,
+          is_hero: p.is_hero,
+        }));
+        setPhotos(allPhotos);
+        // Prefer hero_image field from business profile, fallback to photo with is_hero
+        if (data.hero_image) {
+          console.log("Using hero_image from business profile:", data.hero_image);
+          setHeroImage(data.hero_image);
+        } else {
+          const hero = allPhotos.find((p) => p.is_hero);
+          setHeroImage(hero ? hero.url : null);
+        }
 
         // Load location coords
         if (data.latitude != null && data.longitude != null) {
@@ -956,13 +1011,28 @@ function BusinessDetailContent() {
           setMenuItems([emptyMenuItem()]);
         }
 
-        // Map booking & social links from embedded response
+        // Map booking, order & social links from embedded response
         const bLinks = data.booking_links ?? [];
+        const oLinks = data.order_links ?? [];
         const sLinks = data.social_links ?? [];
         if (bLinks.length > 0) {
           setBooking((prev) => {
             const next = { ...prev };
             for (const link of bLinks) {
+              if (link.platform in next)
+                next[link.platform] = {
+                  id: link.id,
+                  url: link.url,
+                  enabled: true,
+                };
+            }
+            return next;
+          });
+        }
+        if (oLinks.length > 0) {
+          setOrder((prev) => {
+            const next = { ...prev };
+            for (const link of oLinks) {
               if (link.platform in next)
                 next[link.platform] = {
                   id: link.id,
@@ -1007,6 +1077,28 @@ function BusinessDetailContent() {
     value: string | boolean,
   ) => {
     setHours((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }));
+  };
+
+  const handleSecondShiftToggle = (day: string) => {
+    setHours((prev) => {
+      const prevDay = prev[day];
+      if (prevDay.hasSecondShift) {
+        // Remove second shift fields
+        const { open2, close2, lastOrder2, ...rest } = prevDay;
+        return { ...prev, [day]: { ...rest, hasSecondShift: false } };
+      } else {
+        return {
+          ...prev,
+          [day]: {
+            ...prevDay,
+            hasSecondShift: true,
+            open2: "17:00",
+            close2: "22:00",
+            lastOrder2: "21:30",
+          },
+        };
+      }
+    });
   };
 
   const handleClosedDayToggle = (dayKey: string) => {
@@ -1360,6 +1452,46 @@ function BusinessDetailContent() {
         }
       }
 
+      for (const def of ORDER_PLATFORMS) {
+        const s = order[def.key];
+        const hasUrl = s.url.trim() !== "";
+        if (hasUrl && s.enabled) {
+          if (s.id) {
+            ops.push(
+              apiClient.patch(`/order-links/${s.id}/`, { url: s.url }),
+            );
+          } else {
+            ops.push(
+              apiClient
+                .post("/order-links/", {
+                  business: businessId,
+                  platform: def.key,
+                  url: s.url,
+                  is_primary: false,
+                  display_order: ORDER_PLATFORMS.indexOf(def),
+                })
+                .then((res) =>
+                  setOrder((prev) => ({
+                    ...prev,
+                    [def.key]: { ...prev[def.key], id: res.data.id },
+                  })),
+                ),
+            );
+          }
+        } else if (!hasUrl && s.id) {
+          ops.push(
+            apiClient
+              .delete(`/order-links/${s.id}/`)
+              .then(() =>
+                setOrder((prev) => ({
+                  ...prev,
+                  [def.key]: { ...prev[def.key], id: null },
+                })),
+              ),
+          );
+        }
+      }
+
       for (const def of ALL_SOCIAL_PLATFORMS) {
         const s = social[def.key];
         const hasUrl = s.url.trim() !== "";
@@ -1453,7 +1585,6 @@ function BusinessDetailContent() {
       } else if (nextStep >= 3 && business?.category !== "restaurant") {
         nextStep = 4;
       }
-      // Remove hero_image from formData if present (should not be string)
       const { hero_image, ...formDataRest } = formData;
       await updateBusiness(businessId, {
         ...formDataRest,
@@ -1464,10 +1595,10 @@ function BusinessDetailContent() {
         hero_image: undefined, // Always pass as File | null | undefined
       });
 
-      // 2. Update existing hours and create only missing ones
       const hoursPayload = DAYS_OF_WEEK.map((day) => {
         const h = hours[day.key];
         const isClosed = h?.closed ?? false;
+        const hasSecond = !!h?.hasSecondShift;
         return {
           ...(h?.id ? { id: h.id } : {}),
           day_of_week: day.api,
@@ -1475,6 +1606,9 @@ function BusinessDetailContent() {
           opening_time: isClosed ? null : toApiTime(h?.open || "11:00"),
           closing_time: isClosed ? null : toApiTime(h?.close || "23:00"),
           last_order_time: isClosed ? null : toApiTime(h?.lastOrder || "22:30"),
+          opening_time_2: hasSecond && !isClosed ? toApiTime(h?.open2 || "17:00") : null,
+          closing_time_2: hasSecond && !isClosed ? toApiTime(h?.close2 || "22:00") : null,
+          last_order_time_2: hasSecond && !isClosed ? toApiTime(h?.lastOrder2 || "21:30") : null,
         };
       });
 
@@ -1766,8 +1900,8 @@ function BusinessDetailContent() {
               </Label>
               <span className="text-red-500 text-sm">必須</span>
             </div>
-            <div className="overflow-hidden rounded-[24px] border border-[#2a2a2a] bg-white">
-              <div className="grid grid-cols-7 border-b border-[#2a2a2a] bg-[#dddddd]">
+            <div className="overflow-hidden rounded-[16px] border border-[#cfd6df] bg-white">
+              <div className="grid grid-cols-7 border-b border-[#cfd6df] bg-[#f5f5f5]">
                 {DAYS_OF_WEEK.map((day, index) => {
                   const isActive = activeHoursDay === day.key;
                   return (
@@ -1775,9 +1909,9 @@ function BusinessDetailContent() {
                       key={day.key}
                       type="button"
                       onClick={() => setActiveHoursDay(day.key)}
-                      className={`px-2 py-3 text-center text-[clamp(1.1rem,2vw,1.75rem)] font-black tracking-[-0.04em] transition-colors ${
-                        index < DAYS_OF_WEEK.length - 1 ? "border-r border-[#2a2a2a]" : ""
-                      } ${isActive ? "bg-white text-black" : "bg-[#dddddd] text-black"}`}
+                      className={`px-1 py-1 text-center text-[clamp(0.7rem,1.5vw,1rem)] font-black tracking-[-0.04em] transition-colors ${
+                        index < DAYS_OF_WEEK.length - 1 ? "border-r border-[#cfd6df]" : ""
+                      } ${isActive ? "bg-white text-black" : "bg-[#f5f5f5] text-black"}`}
                     >
                       {day.short}
                     </button>
@@ -1785,7 +1919,7 @@ function BusinessDetailContent() {
                 })}
               </div>
 
-              <div className="space-y-4 px-5 py-5">
+              <div className="space-y-4 px-3 py-3">
                 <div className="flex items-center gap-5">
                   <Switch
                     checked={!hours[activeHoursDay]?.closed}
@@ -1799,6 +1933,7 @@ function BusinessDetailContent() {
                     </div>
                   ) : (
                     <div className="flex flex-1 flex-col gap-3">
+                      {/* First shift */}
                       <div className="flex flex-wrap items-center gap-3">
                         <BusinessTimeSpinner
                           value={hours[activeHoursDay]?.open || "11:00"}
@@ -1818,6 +1953,28 @@ function BusinessDetailContent() {
                           disabled={saving}
                         />
                       </div>
+                      {/* Second shift fields (no toggle) */}
+                      {hours[activeHoursDay]?.hasSecondShift && (
+                        <div className="flex flex-wrap items-center gap-3 mt-2 ml-2">
+                          <BusinessTimeSpinner
+                            value={hours[activeHoursDay]?.open2 || "17:00"}
+                            onChange={(value) => handleHoursChange(activeHoursDay, "open2", value)}
+                            disabled={saving}
+                          />
+                          <span className="text-[28px] font-medium text-gray-500 leading-none">~</span>
+                          <BusinessTimeSpinner
+                            value={hours[activeHoursDay]?.close2 || "22:00"}
+                            onChange={(value) => handleHoursChange(activeHoursDay, "close2", value)}
+                            disabled={saving}
+                          />
+                          <span className="text-[17px] font-medium text-gray-500 leading-none">L.O.</span>
+                          <BusinessTimeSpinner
+                            value={hours[activeHoursDay]?.lastOrder2 || "21:30"}
+                            onChange={(value) => handleHoursChange(activeHoursDay, "lastOrder2", value)}
+                            disabled={saving}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1847,68 +2004,77 @@ function BusinessDetailContent() {
               }}
             />
             {(() => {
+              // Prefer heroImage state, fallback to hero photo in photos array
               const heroPhoto = photos.find((p) => p.is_hero);
-              return heroPhoto ? (
-                <div
-                  className="relative group rounded-xl overflow-hidden border border-gray-200 w-full"
-                  style={{ aspectRatio: "16/5" }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={heroPhoto.url}
-                    alt="Hero banner"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => heroInputRef.current?.click()}
-                      disabled={heroUploading}
-                      className="px-3 py-1.5 bg-white/90 text-gray-900 text-sm font-semibold rounded-lg hover:bg-white transition-colors"
-                    >
-                      変更 / Change
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePhoto(heroPhoto.id)}
-                      disabled={heroUploading}
-                      className="px-3 py-1.5 bg-red-500/90 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition-colors"
-                    >
-                      削除 / Remove
-                    </button>
-                  </div>
-                  {heroUploading && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <Loader2 className="h-6 w-6 animate-spin text-white" />
+              const heroUrl = heroImage || heroPhoto?.url || null;
+              const heroId = heroPhoto?.id;
+              if (heroUrl) {
+                return (
+                  <div
+                    className="relative group rounded-xl overflow-hidden border border-gray-200 w-full"
+                    style={{ aspectRatio: "16/5" }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={heroUrl}
+                      alt="Hero banner"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => heroInputRef.current?.click()}
+                        disabled={heroUploading}
+                        className="px-3 py-1.5 bg-white/90 text-gray-900 text-sm font-semibold rounded-lg hover:bg-white transition-colors"
+                      >
+                        変更 / Change
+                      </button>
+                      {heroId && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePhoto(heroId)}
+                          disabled={heroUploading}
+                          className="px-3 py-1.5 bg-red-500/90 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition-colors"
+                        >
+                          削除 / Remove
+                        </button>
+                      )}
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div
-                  onClick={() =>
-                    !heroUploading && heroInputRef.current?.click()
-                  }
-                  className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 py-10 transition-colors ${
-                    heroUploading
-                      ? "border-gray-200 opacity-60 cursor-not-allowed"
-                      : "border-gray-300 hover:border-gray-400 cursor-pointer"
-                  }`}
-                >
-                  {heroUploading ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                  ) : (
-                    <>
-                      <ImagePlus className="h-8 w-8 text-gray-400" />
-                      <p className="text-sm font-medium text-gray-500">
-                        ヒーロー画像をアップロード
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        Hero Banner Image (16:5 recommended)
-                      </p>
-                    </>
-                  )}
-                </div>
-              );
+                    {heroUploading && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-white" />
+                      </div>
+                    )}
+                  </div>
+                );
+              } else {
+                return (
+                  <div
+                    onClick={() =>
+                      !heroUploading && heroInputRef.current?.click()
+                    }
+                    className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 py-10 transition-colors ${
+                      heroUploading
+                        ? "border-gray-200 opacity-60 cursor-not-allowed"
+                        : "border-gray-300 hover:border-gray-400 cursor-pointer"
+                    }`}
+                  >
+                    {heroUploading ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                    ) : (
+                      <>
+                        <ImagePlus className="h-8 w-8 text-gray-400" />
+                        <p className="text-sm font-medium text-gray-500">
+                          ヒーロー画像をアップロード
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Hero Banner Image (16:5 recommended)
+                        </p>
+                      </>
+                    )}
+                  </div>
+                );
+              }
             })()}
             <p className="text-xs text-gray-500 mt-2">
               推奨サイズ：1600×500px以上（横長）
@@ -2028,6 +2194,7 @@ function BusinessDetailContent() {
 
           <BusinessLinksEditor
             booking={booking}
+            order={order}
             social={social}
             disabled={saving}
             onBookingChange={(key, url) =>
@@ -2038,6 +2205,18 @@ function BusinessDetailContent() {
             }
             onBookingToggle={(key, enabled) =>
               setBooking((prev) => ({
+                ...prev,
+                [key]: { ...prev[key], enabled },
+              }))
+            }
+            onOrderChange={(key, url) =>
+              setOrder((prev) => ({
+                ...prev,
+                [key]: { ...prev[key], url },
+              }))
+            }
+            onOrderToggle={(key, enabled) =>
+              setOrder((prev) => ({
                 ...prev,
                 [key]: { ...prev[key], enabled },
               }))

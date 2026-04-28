@@ -13,7 +13,10 @@ import {
   ChevronLeft,
   CalendarX,
 } from "lucide-react";
-import { BusinessDetail, BusinessHours, MenuItemPhoto } from "@/lib/types/business";
+import { BusinessDetail, BusinessHours, MenuItemPhoto, OrderLink } from "@/lib/types/business";
+import BusinessPhotoCarousel from "@/components/business/carousel";
+import { he } from "date-fns/locale";
+import { NoticeButton } from "@/components/business/NoticeButton";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8005/api";
 
@@ -55,6 +58,39 @@ const SOCIAL_LABELS: Record<string, string> = {
   custom:    "Link",
 };
 
+const ORDER_CFG: Record<string, { jp: string; en: string; bg: string; textColor: string }> = {
+    uber_eats: { jp: "Uber Eats", en: "Uber Eats", bg: "#06c167", textColor: "#fff" },
+    wolt: { jp: "Wolt", en: "Wolt", bg: "#00b2e6", textColor: "#fff" },
+    menu: { jp: "menu", en: "menu", bg: "#ff2e2e", textColor: "#fff" },
+    demaecan: { jp: "出前館", en: "Demae-can", bg: "#e60012", textColor: "#fff" },
+    foodpanda: { jp: "foodpanda", en: "foodpanda", bg: "#d70f64", textColor: "#fff" },
+    custom: { jp: "注文", en: "Order", bg: "#f3f4f6", textColor: "#374151" },
+  };
+  function OrderIcon({ platform, className = "w-10 h-10 rounded-xl" }: { platform: string; className?: string }) {
+    const cfg: Record<string, { bg: string; icon: React.ReactNode }> = {
+      uber_eats: { bg: "bg-green-500", icon: <span className="text-white text-xs font-black tracking-tight">UE</span> },
+      wolt: { bg: "bg-sky-400", icon: <span className="text-white text-xs font-black tracking-tight">W</span> },
+      menu: { bg: "bg-red-500", icon: <span className="text-white text-xs font-black tracking-tight">M</span> },
+      demaecan: { bg: "bg-red-700", icon: <span className="text-white text-xs font-black tracking-tight">D</span> },
+      foodpanda: { bg: "bg-pink-600", icon: <span className="text-white text-xs font-black tracking-tight">FP</span> },
+    };
+    const c = cfg[platform];
+    if (!c) {
+      return (
+        <div className={`${className} flex items-center justify-center bg-gray-200 shrink-0`}>
+          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="#9ca3af" strokeWidth="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4M8 2v4M3 10h18" />
+          </svg>
+        </div>
+      );
+    }
+    return (
+      <div className={`${className} flex items-center justify-center shrink-0 ${c.bg}`}>
+        {c.icon}
+      </div>
+    );
+  }
 
 const LineIconSvg = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
@@ -348,7 +384,7 @@ export default function PublicBusinessPage() {
   const [activeTab, setActiveTab] = useState<string>("");
   const [lang, setLang] = useState<"jp" | "en">("jp");
   const [lightbox, setLightbox] = useState<{ photos: MenuItemPhoto[]; index: number } | null>(null);
-  const [bookingTab, setBookingTab] = useState<"booking" | "coupon" | "sns">("booking");
+  const [bookingTab, setBookingTab] = useState<"booking" | "order" | "coupon" | "sns">("booking");
 
   const openLightbox = useCallback((photos: MenuItemPhoto[], index: number) => {
     setLightbox({ photos, index });
@@ -397,8 +433,9 @@ export default function PublicBusinessPage() {
   }, [business]);
 
   const availableActionTabs = useMemo(() => {
-    const tabs: Array<"booking" | "coupon" | "sns"> = [];
+    const tabs: Array<"booking" | "order" | "coupon" | "sns"> = [];
     if ((business?.booking_links?.length ?? 0) > 0) tabs.push("booking");
+    if ((business?.order_links?.length ?? 0) > 0) tabs.push("order");
     if (couponItems.length > 0) tabs.push("coupon");
     if ((business?.social_links?.length ?? 0) > 0) tabs.push("sns");
     return tabs;
@@ -431,7 +468,10 @@ export default function PublicBusinessPage() {
     );
   }
 
-  const heroSrc = business.hero_image_url || business.hero_image;
+  // Use business.photos for carousel; fallback to hero image if no photos
+  const businessPhotos = business.photos && business.photos.length > 0 ? business.photos : null;
+  const heroSrc = business.hero_image || business.hero_image
+  console.log(heroSrc);
   const catMeta = CATEGORY_META[business.category] ?? { labelJp: "ビジネス", labelEn: "Business", tagJp: business.category, tagEn: business.category };
   const { isOpen, currentlyOpen, h: todayH } = getOpenStatus(business.hours ?? [], business.closed_days ?? []);
   const firstClosed = business.closed_days?.[0] ?? null;
@@ -440,14 +480,28 @@ export default function PublicBusinessPage() {
   const serviceItems = business.service_items ?? [];
 
   const bookLinks = business.booking_links ?? [];
+  const orderLinks: OrderLink[] = business.order_links ?? [];
   const socLinks = business.social_links ?? [];
+
+  const photosForCarousel = (business?.photos || []).map(photo => ({
+    ...photo,
+    id: String(photo.id),
+  }));
 
   return (
     <div className="min-h-screen bg-[#ececec] px-2 py-2 font-sans antialiased sm:px-4 sm:py-4">
       <div className="mx-auto max-w-[500px] pb-8">
         <div className="overflow-hidden rounded-[26px] bg-white shadow-[0_16px_38px_rgba(0,0,0,0.14)]">
-          <div className="relative h-[320px] overflow-hidden bg-[var(--bg-lighter)]">
-            {heroSrc ? (
+          <div className="relative h-[280px] overflow-hidden bg-[var(--bg-lighter)]">
+            {photosForCarousel.length > 0 ? (
+              <BusinessPhotoCarousel
+                photos={photosForCarousel}
+                businessName={business.business_name}
+                heroSrc={heroSrc}
+                category={catMeta.labelEn}
+                address={business.address}
+              />
+            ) : heroSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={heroSrc} alt={business.business_name} className="h-full w-full object-cover" />
             ) : (
@@ -457,32 +511,12 @@ export default function PublicBusinessPage() {
 
             <button
               onClick={() => setLang((l) => (l === "jp" ? "en" : "jp"))}
-              className="absolute right-3 top-3 rounded-full bg-black/40 px-3 py-1 text-[11px] font-black tracking-[0.14em] text-white backdrop-blur"
+              className="absolute right-3 top-3 rounded-full bg-black/40 px-3 py-1 text-[11px] font-black tracking-[0.14em] text-white backdrop-blur z-20"
             >
               {lang === "jp" ? "EN" : "JP"}
             </button>
-
-            <div className="absolute bottom-3 left-3 right-3 rounded-[22px]  px-3 py-3 text-white">
-              <div className="flex items-start gap-3">
-                <div className="flex h-[58px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/35 bg-white shadow-sm">
-                  {heroSrc ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={heroSrc} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="text-lg font-black text-[var(--text-dark)]">{business.business_name.slice(0, 1)}</span>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-[46px] font-black leading-tight text-white">{business.business_name}</h1>
-                  <p className="mt-0.5 text-[28px] font-semibold text-white/90">{lang === "jp" ? catMeta.labelEn : catMeta.labelJp}</p>
-                  {business.address && (
-                    <p className="mt-0.5 line-clamp-2 text-[16px] font-semibold leading-tight text-[#d89c48]">
-                      {business.address}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
+            {/* Animated Notice Button */}
+            <NoticeButton />
           </div>
 
           <div className="px-3 pb-3 pt-2">
@@ -547,11 +581,12 @@ export default function PublicBusinessPage() {
             ) : <div />}
           </div>
 
-            {(bookLinks.length > 0 || couponItems.length > 0 || socLinks.length > 0) && (
+            {(bookLinks.length > 0 || orderLinks.length > 0 || couponItems.length > 0 || socLinks.length > 0) && (
               <div className="overflow-hidden rounded-[16px] border-[1px] border-[#cfd6df] bg-white shadow-[0_10px_24px_rgba(0,0,0,0.08)]">
-                <div className="grid grid-cols-3 border-b-[1.5px] border-[#cfd6df] bg-[#dfdfdf]">
+                <div className="grid grid-cols-4 border-b-[1.5px] border-[#cfd6df] bg-[#dfdfdf]">
                   {[
                     { key: "booking" as const, label: "Booking", enabled: bookLinks.length > 0 },
+                    { key: "order" as const, label: "Order", enabled: orderLinks.length > 0 },
                     { key: "coupon" as const, label: "Coupon", enabled: couponItems.length > 0 },
                     { key: "sns" as const, label: "SNS", enabled: socLinks.length > 0 },
                   ].map((tab, index) => {
@@ -563,7 +598,7 @@ export default function PublicBusinessPage() {
                         disabled={!tab.enabled}
                         onClick={() => tab.enabled && setBookingTab(tab.key)}
                         className={`h-[36px] px-2 text-center text-[clamp(0.95rem,2.4vw,1.35rem)] font-black leading-none tracking-[-0.04em] transition-colors ${
-                          index < 2 ? "border-r-[1.5px] border-[#cfd6df]" : ""
+                          index < 3 ? "border-r-[1.5px] border-[#cfd6df]" : ""
                         } ${
                           isActive
                             ? "bg-white text-black"
@@ -598,6 +633,27 @@ export default function PublicBusinessPage() {
                       })}
                     </div>
                   )}
+                  {bookingTab === "order" && (
+                    <div className="flex flex-wrap items-center gap-3">
+                      {orderLinks.map((link) => {
+                        const cfg = ORDER_CFG[link.platform] ?? ORDER_CFG.custom;
+                        const label = link.custom_name || (lang === "jp" ? cfg.jp : cfg.en);
+                        return (
+                          <a
+                            key={link.id}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={label}
+                            title={label}
+                            className="flex items-center justify-center active:scale-[0.97] transition-transform"
+                          >
+                            <OrderIcon platform={link.platform} className="h-[58px] w-[58px] rounded-[16px] shadow-[0_3px_8px_rgba(0,0,0,0.08)]" />
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {bookingTab === "coupon" && (
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -609,21 +665,18 @@ export default function PublicBusinessPage() {
                         const isDrink = /drink|ドリンク|飲み物|cocktail|bar|beer|wine/i.test(label);
                         const bg = isDrink ? "#4b7f16" : "#ff4b18";
                         return (
-                          <div
-                            key={item.id}
-                            className="relative flex h-[58px] items-center justify-center overflow-hidden rounded-[16px] px-3 text-center shadow-[0_3px_8px_rgba(0,0,0,0.08)]"
-                            style={{ backgroundColor: bg }}
-                          >
-                            <span
-                              className="absolute left-1/2 top-0 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
-                            />
-                            <span
-                              className="absolute left-1/2 top-full h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
-                            />
-                            <p className="whitespace-nowrap text-white font-black leading-none tracking-[-0.05em]">
-                              <span className="text-[1.45rem]">{item.discount_percentage}%</span>
-                              <span className="ml-1 text-[0.85rem]">{label}</span>
-                            </p>
+                          <div key={item.id} className="inline-flex gap-1.5">
+                            <div
+                              className="relative flex h-[32px] items-center justify-center overflow-hidden rounded-[6px] px-2.5 shadow-[0_2px_6px_rgba(0,0,0,0.12)]"
+                              style={{ backgroundColor: bg }}
+                            >
+                              <span className="absolute left-1/2 top-0 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
+                              <span className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
+                              <p className="m-0 flex items-baseline gap-0.5 whitespace-nowrap font-black leading-none tracking-[-0.06em] text-white">
+                                <span className="text-[1.1rem]">{item.discount_percentage}%</span>
+                                <span className="ml-0.5 text-[0.65rem] font-extrabold tracking-[0.02em]">{label}</span>
+                              </p>
+                            </div>
                           </div>
                         );
                       })}

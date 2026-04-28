@@ -36,7 +36,16 @@ const DAYS_OF_WEEK = [
   { key: "Sunday", display: "日", short: "Sun" },
 ];
 
-type HoursEntry = { id?: number; open: string; close: string; lastOrder: string };
+type HoursEntry = {
+  id?: number;
+  open: string;
+  close: string;
+  lastOrder: string;
+  open2?: string;
+  close2?: string;
+  lastOrder2?: string;
+  hasSecondShift?: boolean;
+};
 
 type PhotoEntry = { id: number; url: string };
 
@@ -70,39 +79,77 @@ function TimeSpinner({
   value,
   onChange,
   disabled,
-  className = "w-[172px]",
+  className = "w-[100px]",
 }: {
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
   className?: string;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const ref = useRef<HTMLDivElement>(null);
+
   const adjust = (delta: number) => {
-    const next = Math.max(0, Math.min(1439, timeToMins(value) + delta)); // 1439 = 23:59
-    onChange(minsToTime(next));
+    onChange(minsToTime(Math.max(0, Math.min(1439, timeToMins(value) + delta))));
   };
 
+  const commitDraft = (v: string) => {
+    const match = v.match(/^(\d{1,2}):?(\d{2})$/);
+    if (match) {
+      const h = Math.min(23, Number(match[1]));
+      const m = Math.min(59, Number(match[2]));
+      onChange(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+    setEditing(false);
+  };
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      adjust(e.deltaY > 0 ? -1 : 1);
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, [value]);
+
   return (
-    <div className={`flex items-center rounded-[18px] border border-[#cfd6df] bg-white select-none overflow-hidden shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)] ${className}`}>
-      <span className="flex-1 px-5 py-3 text-center text-[15px] font-medium text-gray-900 leading-none">
-        {formatTimeWithPeriod(value)}
-      </span>
+    <div
+      ref={ref}
+      className={`flex items-center rounded-[10px] border border-[#cfd6df] bg-white select-none overflow-hidden ${className}`}
+    >
+      {editing ? (
+        <input
+          autoFocus
+          type="text"
+          defaultValue={value}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={(e) => commitDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitDraft((e.target as HTMLInputElement).value);
+            if (e.key === "Escape") setEditing(false);
+            if (e.key === "ArrowUp") { e.preventDefault(); adjust(1); }
+            if (e.key === "ArrowDown") { e.preventDefault(); adjust(-1); }
+          }}
+          className="flex-1 px-2 py-1.5 text-center text-[13px] font-medium text-gray-900 leading-none outline-none w-full"
+          disabled={disabled}
+        />
+      ) : (
+        <span
+          className="flex-1 px-2 py-1.5 text-center text-[13px] font-medium text-gray-900 leading-none cursor-text"
+          onClick={() => { setDraft(value); setEditing(true); }}
+        >
+          {value}
+        </span>
+      )}
       <div className="flex flex-col border-l border-gray-200 shrink-0">
-        <button
-          type="button"
-          onClick={() => adjust(30)}
-          className="flex items-center justify-center px-2 py-1.5 hover:bg-gray-50 border-b border-gray-200"
-          disabled={disabled}
-        >
-          <ChevronUp className="h-3 w-3 text-gray-400" />
+        <button type="button" onClick={() => adjust(30)} className="flex items-center justify-center px-1.5 py-1 hover:bg-gray-50 border-b border-gray-200" disabled={disabled}>
+          <ChevronUp className="h-2.5 w-2.5 text-gray-400" />
         </button>
-        <button
-          type="button"
-          onClick={() => adjust(-30)}
-          className="flex items-center justify-center px-2 py-1.5 hover:bg-gray-50"
-          disabled={disabled}
-        >
-          <ChevronDown className="h-3 w-3 text-gray-400" />
+        <button type="button" onClick={() => adjust(-30)} className="flex items-center justify-center px-1.5 py-1 hover:bg-gray-50" disabled={disabled}>
+          <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
         </button>
       </div>
     </div>
@@ -118,13 +165,7 @@ export function Step2Form({
 }: Step2FormProps) {
   const [website, setWebsite] = useState(business.website || "");
   const [activeHoursDay, setActiveHoursDay] = useState<string>(DAYS_OF_WEEK[0].key);
-  const [hours, setHours] = useState<Record<string, HoursEntry>>(() => {
-    const init: Record<string, HoursEntry> = {};
-    DAYS_OF_WEEK.forEach((d) => {
-      init[d.key] = { open: "11:00", close: "23:59", lastOrder: "23:00" };
-    });
-    return init;
-  });
+  const [hours, setHours] = useState<Record<string, HoursEntry>>({});
   const [closedDays, setClosedDays] = useState<string[]>([]);
   // IDs of existing ClosedDay records (needed to delete before recreating)
   const [closedDayRecords, setClosedDayRecords] = useState<{ id: number; day_of_week: string }[]>([]);
@@ -137,9 +178,21 @@ export function Step2Form({
 
   const photosInputRef = useRef<HTMLInputElement>(null);
 
-  // Load existing photos, hours and closed days on mount
+  // Always fetch hours, photos, and closed days from server on mount or business change
   useEffect(() => {
-    if (isNew) return;
+    if (isNew) {
+      // New business: always blank/default state
+      const blankHours: Record<string, HoursEntry> = {};
+      DAYS_OF_WEEK.forEach((d) => {
+        blankHours[d.key] = { open: "11:00", close: "23:59", lastOrder: "23:00", hasSecondShift: true };
+      });
+      setHours(blankHours);
+      setClosedDays([]);
+      setClosedDayRecords([]);
+      setGalleryPhotos([]);
+      return;
+    }
+    if (!business?.id) return;
     Promise.all([
       apiClient.get(`/business-photos/?business=${business.id}`),
       apiClient.get(`/business-hours/?business=${business.id}`),
@@ -153,11 +206,11 @@ export function Step2Form({
 
         // Hours — map API records into state (preserving IDs)
         const existingHours: any[] = hoursRes.data.results ?? hoursRes.data;
+        const mapped: Record<string, HoursEntry> = {};
+        DAYS_OF_WEEK.forEach((d) => {
+          mapped[d.key] = { open: "11:00", close: "23:59", lastOrder: "23:00", hasSecondShift: true };
+        });
         if (existingHours.length > 0) {
-          const mapped: Record<string, HoursEntry> = {};
-          DAYS_OF_WEEK.forEach((d) => {
-            mapped[d.key] = { open: "11:00", close: "23:59", lastOrder: "23:00" };
-          });
           existingHours.forEach((h: any) => {
             const day = DAYS_OF_WEEK.find((d) => DAY_KEY_MAP[d.key] === h.day_of_week);
             if (!day) return;
@@ -167,10 +220,14 @@ export function Step2Form({
               open: toDisplay(h.opening_time) || "11:00",
               close: toDisplay(h.closing_time) || "23:59",
               lastOrder: toDisplay(h.last_order_time) || "23:00",
+              open2: h.opening_time_2 ? toDisplay(h.opening_time_2) : undefined,
+              close2: h.closing_time_2 ? toDisplay(h.closing_time_2) : undefined,
+              lastOrder2: h.last_order_time_2 ? toDisplay(h.last_order_time_2) : undefined,
+              hasSecondShift: !!(h.opening_time_2 && h.closing_time_2),
             };
           });
-          setHours(mapped);
         }
+        setHours(mapped);
 
         // Closed days
         const existingClosed: any[] = closedRes.data.results ?? closedRes.data;
@@ -183,7 +240,7 @@ export function Step2Form({
       .catch(() => {
         // non-fatal — fall back to defaults
       });
-  }, [business.id, isNew]);
+  }, [business?.id, isNew]);
 
   const toggleClosed = (dayKey: string) => {
     setClosedDays((prev) =>
@@ -270,6 +327,7 @@ export function Step2Form({
     const payload = DAYS_OF_WEEK.map((day) => {
       const isClosed = closedDays.includes(day.key);
       const dayHours = hours[day.key];
+      const hasSecond = !!dayHours?.hasSecondShift;
       return {
         ...(dayHours?.id ? { id: dayHours.id } : {}),
         day_of_week: DAY_KEY_MAP[day.key],
@@ -277,6 +335,9 @@ export function Step2Form({
         opening_time: isClosed ? null : toApiTime(dayHours?.open || "11:00"),
         closing_time: isClosed ? null : toApiTime(dayHours?.close || "23:00"),
         last_order_time: isClosed ? null : toApiTime(dayHours?.lastOrder || "23:59"),
+        opening_time_2: hasSecond && !isClosed ? toApiTime(dayHours?.open2 || "17:00") : null,
+        closing_time_2: hasSecond && !isClosed ? toApiTime(dayHours?.close2 || "22:00") : null,
+        last_order_time_2: hasSecond && !isClosed ? toApiTime(dayHours?.lastOrder2 || "21:30") : null,
       };
     });
 
@@ -387,8 +448,8 @@ export function Step2Form({
             </span>
           </div>
 
-          <div className="overflow-hidden rounded-[24px] border border-[#2a2a2a] bg-white">
-            <div className="grid grid-cols-7 border-b border-[#2a2a2a] bg-[#dddddd]">
+          <div className="overflow-hidden rounded-[16px] border border-[#cfd6df] bg-white">
+            <div className="grid grid-cols-7 border-b border-[#cfd6df] bg-[#dddddd]">
               {DAYS_OF_WEEK.map((day, index) => {
                 const isActive = activeHoursDay === day.key;
                 return (
@@ -396,8 +457,8 @@ export function Step2Form({
                     key={day.key}
                     type="button"
                     onClick={() => setActiveHoursDay(day.key)}
-                    className={`px-2 py-3 text-center text-[clamp(1.1rem,2vw,1.75rem)] font-black tracking-[-0.04em] transition-colors ${
-                      index < DAYS_OF_WEEK.length - 1 ? "border-r border-[#2a2a2a]" : ""
+                    className={`px-1 py-1 text-center text-[clamp(0.7rem,1.5vw,1rem)] font-black tracking-[-0.04em] transition-colors ${
+                      index < DAYS_OF_WEEK.length - 1 ? "border-r border-[#cfd6df]" : ""
                     } ${isActive ? "bg-white text-black" : "bg-[#dddddd] text-black"}`}
                   >
                     {day.short}
@@ -406,8 +467,8 @@ export function Step2Form({
               })}
             </div>
 
-            <div className="space-y-4 px-5 py-5">
-              <div className="flex items-center gap-5">
+            <div className="space-y-4 px-3 py-3">
+              <div className="flex items-center gap-3">
                 <Switch
                   checked={!activeDayClosed}
                   onCheckedChange={() => toggleClosed(activeHoursDay)}
@@ -416,12 +477,13 @@ export function Step2Form({
                 />
 
                 {activeDayClosed ? (
-                  <div className="rounded-[18px] border border-[#cfd6df] px-5 py-3 text-sm font-semibold text-gray-500">
+                  <div className="rounded-[12px] border border-[#cfd6df] px-5 py-3 text-sm font-semibold text-gray-500">
                     定休日 / Closed
                   </div>
                 ) : (
                   <div className="flex flex-1 flex-col gap-3">
-                    <div className="flex flex-wrap items-center gap-3">
+                    {/* First shift */}
+                    <div className="flex flex-wrap items-center gap-1">
                       <TimeSpinner
                         value={activeDayHours?.open || "11:00"}
                         onChange={(v) => handleHoursChange(activeHoursDay, "open", v)}
@@ -440,6 +502,28 @@ export function Step2Form({
                         disabled={loading}
                       />
                     </div>
+                    {/* Second shift fields (no toggle) */}
+                    {activeDayHours?.hasSecondShift && (
+                      <div className="flex flex-wrap items-center gap-3 mt-2">
+                        <TimeSpinner
+                          value={activeDayHours?.open2 || "17:00"}
+                          onChange={(v) => handleHoursChange(activeHoursDay, "open2", v)}
+                          disabled={loading}
+                        />
+                        <span className="text-[28px] font-medium text-gray-500 leading-none">~</span>
+                        <TimeSpinner
+                          value={activeDayHours?.close2 || "22:00"}
+                          onChange={(v) => handleHoursChange(activeHoursDay, "close2", v)}
+                          disabled={loading}
+                        />
+                        <span className="text-[17px] font-medium text-gray-500 leading-none">L.O.</span>
+                        <TimeSpinner
+                          value={activeDayHours?.lastOrder2 || "21:30"}
+                          onChange={(v) => handleHoursChange(activeHoursDay, "lastOrder2", v)}
+                          disabled={loading}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

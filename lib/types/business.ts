@@ -1,3 +1,15 @@
+export interface OrderLink {
+  id: number;
+  business: number;
+  platform: "uber_eats" | "wolt" | "menu" | "demaecan" | "foodpanda" | "custom";
+  custom_name?: string;
+  url: string;
+  is_primary: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // Business types
 export interface BusinessProfile {
   id: number;
@@ -38,6 +50,9 @@ export interface BusinessHours {
   opening_time?: string | null;
   closing_time?: string | null;
   last_order_time?: string | null;
+  opening_time_2?: string | null;
+  closing_time_2?: string | null;
+  last_order_time_2?: string | null;
 }
 
 export type BulkHoursEntry = Omit<BusinessHours, "id" | "business"> & {
@@ -195,5 +210,6 @@ export interface BusinessDetail extends BusinessProfile {
   service_items?: ServiceItem[];
   booking_links?: BookingLink[];
   social_links?: SocialLink[];
+  order_links?: OrderLink[];
   public_page?: PublicPage;
 }

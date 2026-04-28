@@ -38,7 +38,6 @@ function OnboardingContent() {
     }
   }, [successMessage]);
 
-// Patch type that allows hero_image as File, not string
 type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image?: File | null };
 
   const handleStep1Submit = async (data: {
@@ -46,7 +45,7 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
     category: string;
     address?: string;
     phone_number?: string;
-    heroImage?: File | null;
+    hero_image?: File | null;
     latitude?: number;
     longitude?: number;
   }) => {
@@ -55,7 +54,6 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
 
 
       if (business) {
-        // PATCH with hero_image as File, not string
         const patch: BusinessPatch = {
           business_name: data.business_name,
           category: data.category as BusinessProfile["category"],
@@ -63,7 +61,7 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
           phone_number: data.phone_number,
           latitude: data.latitude,
           longitude: data.longitude,
-          ...(data.heroImage ? { hero_image: data.heroImage } : {}),
+          ...(data.hero_image ? { hero_image: data.hero_image } : {}),
         };
         const updated = await updateBusiness(business.id, patch);
         const merged = { ...business, ...updated };
@@ -74,7 +72,6 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
         return;
       }
 
-      // New business — POST with hero_image as top-level field
       const newBusiness = await createBusiness({
         business_name: data.business_name,
         category: data.category,
@@ -82,7 +79,7 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
         phone_number: data.phone_number,
         latitude: data.latitude,
         longitude: data.longitude,
-        hero_image: data.heroImage,
+        hero_image: data.hero_image,
       });
       let merged = {
         ...newBusiness,
@@ -101,7 +98,6 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
     if (!business) return;
     try {
       clearError();
-      // Remove hero_image if present (string type is not allowed)
       const { hero_image, ...rest } = data;
       const updated = await updateBusiness(business.id, { ...rest });
       setBusiness((prev) => ({ ...prev!, ...updated }));
@@ -116,7 +112,6 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
     if (!business) return;
     try {
       clearError();
-      // Remove hero_image if present (string type is not allowed)
       const { hero_image, ...rest } = data;
       const updated = await updateBusiness(business.id, { ...rest });
       setBusiness((prev) => ({ ...prev!, ...updated }));
@@ -131,7 +126,6 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
     if (!business) return;
     try {
       clearError();
-      // Remove hero_image if present (string type is not allowed)
       const { hero_image, ...rest } = data;
       const updated = await updateBusiness(business.id, { ...rest });
       setBusiness((prev) => ({ ...prev!, ...updated }));

@@ -24,6 +24,8 @@ import {
   Plus,
 } from "lucide-react";
 import { BusinessProfile } from "@/lib/types/business";
+import { NoticeAddDialog } from "@/components/business/notice-add-dialog";
+import { useBusinessNotices } from "@/lib/hooks/useBusinessNotices";
 
 type BusinessCategory =
   | "restaurant"
@@ -180,6 +182,11 @@ const BusinessCard = React.memo(function BusinessCard({
   business: BusinessProfile;
   onPublishToggle?: (id: number, publish: boolean) => Promise<void>;
 }) {
+  const [noticeDialogOpen, setNoticeDialogOpen] = useState(false);
+  const { addNotice, loading: noticeLoading } = useBusinessNotices();
+  const handleAddNotice = async (text: string, expires_at?: string | null) => {
+    await addNotice(business.id, text, expires_at);
+  };
   const meta = getCategoryMeta(business.category);
   const progress = getOnboardingProgress(business.onboarding_step);
   const publicUrl = getPublicUrl(business);
@@ -342,10 +349,20 @@ const BusinessCard = React.memo(function BusinessCard({
               Edit
             </Link>
           </Button>
-          <Button className="bg-[var(--accent-gold)] hover:bg-[var(--accent-yellow)] text-white font-semibold text-sm h-10 px-4 rounded-xl border-0">
+          <Button
+            className="bg-[var(--accent-gold)] hover:bg-[var(--accent-yellow)] text-white font-semibold text-sm h-10 px-4 rounded-xl border-0"
+            type="button"
+            onClick={() => setNoticeDialogOpen(true)}
+          >
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             Notice
           </Button>
+          <NoticeAddDialog
+            open={noticeDialogOpen}
+            onOpenChange={setNoticeDialogOpen}
+            onSubmit={handleAddNotice}
+            loading={noticeLoading}
+          />
           {business.is_published && (
             <Button
               asChild

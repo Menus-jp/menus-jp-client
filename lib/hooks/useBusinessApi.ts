@@ -661,6 +661,64 @@ export function useBusinessApi() {
     }
   }, []);
 
+    // ── Order Links ─────────────────────────────────────────────────────────
+  const listOrderLinks = useCallback(async (businessId: number) => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get(`/order-links/?business=${businessId}`);
+      return (res.data.results ?? res.data) as import("@/lib/types/business").OrderLink[];
+    } catch (err: any) {
+      setError(extractError(err, "Failed to load order links"));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const createOrderLink = useCallback(
+    async (data: Omit<import("@/lib/types/business").OrderLink, "id" | "created_at" | "updated_at">) => {
+      try {
+        setLoading(true);
+        const res = await apiClient.post("/order-links/", data);
+        return res.data as import("@/lib/types/business").OrderLink;
+      } catch (err: any) {
+        setError(extractError(err, "Failed to create order link"));
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const updateOrderLink = useCallback(
+    async (id: number, data: Partial<import("@/lib/types/business").OrderLink>) => {
+      try {
+        setLoading(true);
+        const res = await apiClient.patch(`/order-links/${id}/`, data);
+        return res.data as import("@/lib/types/business").OrderLink;
+      } catch (err: any) {
+        setError(extractError(err, "Failed to update order link"));
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const deleteOrderLink = useCallback(async (id: number) => {
+    try {
+      setLoading(true);
+      await apiClient.delete(`/order-links/${id}/`);
+    } catch (err: any) {
+      setError(extractError(err, "Failed to delete order link"));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const clearError = useCallback(() => setError(null), []);
 
   return {
@@ -717,5 +775,10 @@ export function useBusinessApi() {
     listPhotos,
     uploadPhoto,
     deletePhoto,
+    // Order Links
+    listOrderLinks,
+    createOrderLink,
+    updateOrderLink,
+    deleteOrderLink,
   };
 }

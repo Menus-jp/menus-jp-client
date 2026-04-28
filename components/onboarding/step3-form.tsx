@@ -8,14 +8,17 @@ import {
   Loader2,
   ChevronRight,
 } from "lucide-react";
-import { BusinessProfile, BookingLink, SocialLink } from "@/lib/types/business";
+import { BusinessProfile, BookingLink, SocialLink, OrderLink } from "@/lib/types/business";
 import apiClient from "@/lib/api/auth";
 import {
   ALL_SOCIAL_PLATFORMS,
   BOOKING_PLATFORMS,
+  ORDER_PLATFORMS,
   BusinessLinksEditor,
   BookingPlatformKey,
+  OrderPlatformKey,
   initBookingState,
+  initOrderState,
   initSocialState,
   LinkState,
   SocialPlatformKey,
@@ -51,6 +54,7 @@ export function Step3Form({
     useState<Record<BookingPlatformKey, LinkState>>(initBookingState);
   const [social, setSocial] =
     useState<Record<SocialPlatformKey, LinkState>>(initSocialState);
+  const [order, setOrder] = useState<Record<OrderPlatformKey, LinkState>>(initOrderState);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -59,15 +63,31 @@ export function Step3Form({
     if (isNew) return;
     Promise.all([
       apiClient.get(`/booking-links/?business=${business.id}`),
+      apiClient.get(`/order-links/?business=${business.id}`),
       apiClient.get(`/social-links/?business=${business.id}`),
     ])
-      .then(([bRes, sRes]) => {
+      .then(([bRes, oRes, sRes]) => {
         const bLinks: BookingLink[] = bRes.data.results ?? bRes.data;
+        const oLinks: OrderLink[] = oRes.data.results ?? oRes.data;
         const sLinks: SocialLink[] = sRes.data.results ?? sRes.data;
 
         setBooking((prev) => {
           const next = { ...prev };
           for (const link of bLinks) {
+            if (link.platform in next) {
+              next[link.platform] = {
+                id: link.id,
+                url: link.url,
+                enabled: true,
+              };
+            }
+          }
+          return next;
+        });
+
+        setOrder((prev) => {
+          const next = { ...prev };
+          for (const link of oLinks) {
             if (link.platform in next) {
               next[link.platform] = {
                 id: link.id,
@@ -97,6 +117,11 @@ export function Step3Form({
         // non-fatal
       });
   }, [business.id, isNew]);
+  const updateOrder = (key: OrderPlatformKey, patch: Partial<LinkState>) =>
+    setOrder((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+
+  const handleOrderUrlChange = (key: OrderPlatformKey, url: string) =>
+    updateOrder(key, { url });
 
   const updateBooking = (key: BookingPlatformKey, patch: Partial<LinkState>) =>
     setBooking((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
@@ -121,7 +146,10 @@ export function Step3Form({
     const missingSocial = ALL_SOCIAL_PLATFORMS.filter(
       (def) => social[def.key].enabled && !social[def.key].url.trim(),
     ).map((def) => def.label);
-    const missing = [...missingBooking, ...missingSocial];
+    const missingOrder = ORDER_PLATFORMS.filter(
+      (def) => order[def.key].enabled && !order[def.key].url.trim(),
+    ).map((def) => def.label);
+    const missing = [...missingBooking, ...missingOrder, ...missingSocial];
     if (missing.length > 0) {
       setSaveError(
         `URLを入力してください / Please enter a URL for: ${missing.join(", ")}`,
@@ -161,6 +189,37 @@ export function Step3Form({
             apiClient
               .delete(`/booking-links/${s.id}/`)
               .then(() => updateBooking(def.key, { id: null })),
+          );
+        }
+      }
+
+      // Sync order links
+      for (const def of ORDER_PLATFORMS) {
+        const s = order[def.key];
+        const hasUrl = s.url.trim() !== "";
+        if (hasUrl && s.enabled) {
+          if (s.id) {
+            ops.push(
+              apiClient.patch(`/order-links/${s.id}/`, { url: s.url }),
+            );
+          } else {
+            ops.push(
+              apiClient
+                .post("/order-links/", {
+                  business: business.id,
+                  platform: def.key,
+                  url: s.url,
+                  is_primary: false,
+                  display_order: ORDER_PLATFORMS.indexOf(def),
+                })
+                .then((res) => updateOrder(def.key, { id: res.data.id })),
+            );
+          }
+        } else if (!hasUrl && s.id) {
+          ops.push(
+            apiClient
+              .delete(`/order-links/${s.id}/`)
+              .then(() => updateOrder(def.key, { id: null })),
           );
         }
       }
@@ -222,10 +281,13 @@ export function Step3Form({
 
       <BusinessLinksEditor
         booking={booking}
+        order={order}
         social={social}
         disabled={isLoading}
         onBookingChange={handleBookingUrlChange}
         onBookingToggle={(key, enabled) => updateBooking(key, { enabled })}
+        onOrderChange={handleOrderUrlChange}
+        onOrderToggle={(key, enabled) => updateOrder(key, { enabled })}
         onSocialChange={handleSocialUrlChange}
         onSocialToggle={(key, enabled) => updateSocial(key, { enabled })}
       />

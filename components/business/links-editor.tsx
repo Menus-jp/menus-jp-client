@@ -171,6 +171,76 @@ export const ALL_SOCIAL_PLATFORMS: PlatformDef<SocialPlatformKey>[] = [
     ),
   },
 ];
+export type OrderPlatformKey = "uber_eats" | "wolt" | "menu" | "demaecan" | "foodpanda" | "custom";
+
+export const ORDER_PLATFORMS: PlatformDef<OrderPlatformKey>[] = [
+  {
+    key: "uber_eats",
+    label: "Uber Eats",
+    placeholder: "https://www.ubereats.com/store/...",
+    tabLabel: "Uber Eats",
+    tabIcon: (
+      <Badge className="bg-[#06c167] text-white">
+        <span className="text-[13px] font-black tracking-[0.18em]">UE</span>
+      </Badge>
+    ),
+  },
+  {
+    key: "wolt",
+    label: "Wolt",
+    placeholder: "https://wolt.com/...",
+    tabLabel: "Wolt",
+    tabIcon: (
+      <Badge className="bg-[#00b2e6] text-white">
+        <span className="text-[13px] font-black tracking-[0.18em]">W</span>
+      </Badge>
+    ),
+  },
+  {
+    key: "menu",
+    label: "menu",
+    placeholder: "https://menu.com/...",
+    tabLabel: "menu",
+    tabIcon: (
+      <Badge className="bg-[#ff4b4b] text-white">
+        <span className="text-[13px] font-black tracking-[0.18em]">M</span>
+      </Badge>
+    ),
+  },
+  {
+    key: "demaecan",
+    label: "出前館",
+    placeholder: "https://demae-can.com/...",
+    tabLabel: "出前館",
+    tabIcon: (
+      <Badge className="bg-[#e60012] text-white">
+        <span className="text-[13px] font-black tracking-[0.18em]">出</span>
+      </Badge>
+    ),
+  },
+  {
+    key: "foodpanda",
+    label: "foodpanda",
+    placeholder: "https://foodpanda.co.jp/...",
+    tabLabel: "foodpanda",
+    tabIcon: (
+      <Badge className="bg-[#d70f64] text-white">
+        <span className="text-[13px] font-black tracking-[0.18em]">FP</span>
+      </Badge>
+    ),
+  },
+  {
+    key: "custom",
+    label: "Other",
+    placeholder: "https://...",
+    tabLabel: "Other",
+    tabIcon: (
+      <Badge className="bg-[#aa8ae8] text-white">
+        <LinkIcon className="h-8 w-8" />
+      </Badge>
+    ),
+  },
+];
 
 export function initBookingState(): Record<BookingPlatformKey, LinkState> {
   const state = {} as Record<BookingPlatformKey, LinkState>;
@@ -187,6 +257,15 @@ export function initSocialState(): Record<SocialPlatformKey, LinkState> {
   }
   return state;
 }
+
+export function initOrderState(): Record<OrderPlatformKey, LinkState> {
+  const state = {} as Record<OrderPlatformKey, LinkState>;
+  for (const platform of ORDER_PLATFORMS) {
+    state[platform.key] = { id: null, url: "", enabled: false };
+  }
+  return state;
+}
+
 
 function PlatformTabs<K extends string>({
   title,
@@ -284,18 +363,24 @@ function PlatformTabs<K extends string>({
 
 export function BusinessLinksEditor({
   booking,
+  order,
   social,
   disabled,
   onBookingChange,
   onBookingToggle,
+  onOrderChange,
+  onOrderToggle,
   onSocialChange,
   onSocialToggle,
 }: {
   booking: Record<BookingPlatformKey, LinkState>;
+  order: Record<OrderPlatformKey, LinkState>;
   social: Record<SocialPlatformKey, LinkState>;
   disabled?: boolean;
   onBookingChange: (key: BookingPlatformKey, url: string) => void;
   onBookingToggle: (key: BookingPlatformKey, enabled: boolean) => void;
+  onOrderChange: (key: OrderPlatformKey, url: string) => void;
+  onOrderToggle: (key: OrderPlatformKey, enabled: boolean) => void;
   onSocialChange: (key: SocialPlatformKey, url: string) => void;
   onSocialToggle: (key: SocialPlatformKey, enabled: boolean) => void;
 }) {
@@ -308,6 +393,14 @@ export function BusinessLinksEditor({
         disabled={disabled}
         onChange={onBookingChange}
         onToggle={onBookingToggle}
+      />
+      <PlatformTabs
+        title="Order Links"
+        defs={ORDER_PLATFORMS}
+        state={order}
+        disabled={disabled}
+        onChange={onOrderChange}
+        onToggle={onOrderToggle}
       />
       <PlatformTabs
         title="SNS Links"
