@@ -1,22 +1,27 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import {
-  Phone,
   Clock,
-  Navigation,
   ChevronRight,
   Loader2,
   AlertCircle,
   X as XClose,
   ChevronLeft,
   CalendarX,
+  Maximize2,
 } from "lucide-react";
-import { BusinessDetail, BusinessHours, MenuItemPhoto, OrderLink } from "@/lib/types/business";
+import { BusinessDetail, BusinessHours, BusinessInfo, MenuItemPhoto, OrderLink } from "@/lib/types/business";
 import BusinessPhotoCarousel from "@/components/business/carousel";
-import { he } from "date-fns/locale";
 import { NoticeButton } from "@/components/business/NoticeButton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8005/api";
 
@@ -128,6 +133,41 @@ const XIconSvg = () => (
   </svg>
 );
 
+const IOSLocationIconSvg = () => (
+  <svg 
+  viewBox="0 0 24 24" 
+  fill="none" 
+  stroke="currentColor" 
+  strokeWidth="2" 
+  strokeLinecap="round" 
+  strokeLinejoin="round" 
+  className="w-6 h-6"
+>
+  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+  <circle cx="12" cy="10" r="3" />
+</svg>
+);
+
+const IOSPhoneIconSvg = () => (
+<svg 
+  viewBox="0 0 24 24" 
+  fill="none" 
+  stroke="currentColor" 
+  strokeWidth="2" 
+  strokeLinecap="round" 
+  strokeLinejoin="round" 
+  className="w-6 h-6"
+>
+  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+</svg>
+);
+
+const IOSInfoIconSvg = () => (
+  <svg viewBox="0 0 24 24" className="h-[15px] w-[15px] fill-current" aria-hidden="true">
+    <path d="M12 2.5a9.5 9.5 0 1 0 9.5 9.5A9.5 9.5 0 0 0 12 2.5Zm0 4.1a1.25 1.25 0 1 1-1.25 1.25A1.25 1.25 0 0 1 12 6.6Zm1.35 10.4h-2.7a.75.75 0 0 1 0-1.5h.6V11.1h-.45a.75.75 0 0 1 0-1.5H12a.75.75 0 0 1 .75.75v5.15h.6a.75.75 0 0 1 0 1.5Z" />
+  </svg>
+);
+
 // Booking icon: colored square + white icon (matches step3-form.tsx PlatformIcon style)
 function BookingIcon({ platform, className = "w-10 h-10 rounded-xl" }: { platform: string; className?: string }) {
   const cfg: Record<string, { bg: string; icon: React.ReactNode }> = {
@@ -227,6 +267,18 @@ function fmt(t?: string | null) {
   return t.slice(0, 5);
 }
 
+function getInitials(name: string) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  return initials || "MJ";
+}
+
 function getOpenStatus(hours: BusinessHours[], closedDays: { day_of_week: string }[]) {
   const days = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
   const today = days[new Date().getDay()] as keyof typeof DAY_LABELS;
@@ -243,6 +295,23 @@ function getOpenStatus(hours: BusinessHours[], closedDays: { day_of_week: string
     ? now >= openMin || now < closeMin
     : now >= openMin && now < closeMin;
   return { isOpen: true, currentlyOpen, h, today };
+}
+
+function normalizeBusinessInfoPayload(payload: unknown): BusinessInfo | null {
+  if (Array.isArray(payload)) {
+    return (payload[0] as BusinessInfo | undefined) ?? null;
+  }
+
+  if (payload && typeof payload === "object") {
+    const results = (payload as { results?: unknown }).results;
+    if (Array.isArray(results)) {
+      return (results[0] as BusinessInfo | undefined) ?? null;
+    }
+
+    return payload as BusinessInfo;
+  }
+
+  return null;
 }
 
 function getTodayKey() {
@@ -298,7 +367,6 @@ function Lightbox({
       className="fixed inset-0 z-[200] bg-black/95 flex flex-col items-center justify-center"
       onClick={onClose}
     >
-      {/* Close */}
       <button
         onClick={onClose}
         className="absolute top-4 right-4 p-2.5 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-10"
@@ -306,14 +374,12 @@ function Lightbox({
         <XClose size={20} className="text-white" />
       </button>
 
-      {/* Counter */}
       {photos.length > 1 && (
         <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-black/60 rounded-full px-3 py-1 text-white/70 text-xs font-bold">
           {index + 1} / {photos.length}
         </div>
       )}
 
-      {/* Image */}
       <div
         className="relative max-w-[90vw] max-h-[75vh] flex items-center justify-center"
         onClick={(e) => e.stopPropagation()}
@@ -326,12 +392,10 @@ function Lightbox({
         />
       </div>
 
-      {/* Label */}
       {photo.label && (
         <p className="mt-4 text-white/70 text-sm font-semibold text-center px-6">{photo.label}</p>
       )}
 
-      {/* Prev / Next arrows */}
       {photos.length > 1 && (
         <>
           <button
@@ -349,7 +413,6 @@ function Lightbox({
         </>
       )}
 
-      {/* Thumbnail strip */}
       {photos.length > 1 && (
         <div
           className="absolute bottom-6 left-0 right-0 flex justify-center gap-2 px-6 overflow-x-auto"
@@ -373,7 +436,6 @@ function Lightbox({
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PublicBusinessPage() {
   const params = useParams();
@@ -384,7 +446,15 @@ export default function PublicBusinessPage() {
   const [activeTab, setActiveTab] = useState<string>("");
   const [lang, setLang] = useState<"jp" | "en">("jp");
   const [lightbox, setLightbox] = useState<{ photos: MenuItemPhoto[]; index: number } | null>(null);
+  const [menuPhotoIndexes, setMenuPhotoIndexes] = useState<Record<number, number>>({});
   const [bookingTab, setBookingTab] = useState<"booking" | "order" | "coupon" | "sns">("booking");
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [businessInfo, setBusinessInfo] = useState<BusinessInfo | null>(null);
+  const [infoLoading, setInfoLoading] = useState(false);
+  const [infoError, setInfoError] = useState<string | null>(null);
+  const menuSectionRef = useRef<HTMLDivElement | null>(null);
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
+  const menuTabsRef = useRef<HTMLDivElement | null>(null);
 
   const openLightbox = useCallback((photos: MenuItemPhoto[], index: number) => {
     setLightbox({ photos, index });
@@ -395,6 +465,66 @@ export default function PublicBusinessPage() {
   const nextPhoto = useCallback(() =>
     setLightbox((lb) => lb ? { ...lb, index: (lb.index + 1) % lb.photos.length } : null), []);
   const onJump = useCallback((i: number) => setLightbox((lb) => lb ? { ...lb, index: i } : null), []);
+  const shiftMenuPhoto = useCallback((itemId: number, totalPhotos: number, direction: 1 | -1) => {
+    setMenuPhotoIndexes((current) => ({
+      ...current,
+      [itemId]: ((current[itemId] ?? 0) + direction + totalPhotos) % totalPhotos,
+    }));
+  }, []);
+  const revealMenuTabs = useCallback(() => {
+    if (menuSectionRef.current) {
+      const rect = menuSectionRef.current.getBoundingClientRect();
+      const absoluteTop = rect.top + window.scrollY;
+      console.log("📍 Scrolling to:", absoluteTop, "Current position:", window.scrollY, "Rect.top:", rect.top);
+      
+      window.scrollTo({
+        top: absoluteTop,
+        behavior: "smooth",
+      });
+      
+      setTimeout(() => {
+        document.documentElement.scrollTop = absoluteTop;
+        document.body.scrollTop = absoluteTop;
+      }, 50);
+    }
+    if (menuPanelRef.current) {
+      menuPanelRef.current.scrollTop = 0;
+    }
+  }, []);
+  const handleMenuImageWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    if ((menuPanelRef.current?.scrollTop ?? 0) > 0 || menuSectionRef.current) {
+      revealMenuTabs();
+    }
+  }, [revealMenuTabs]);
+
+  const openInfoDialog = useCallback(async () => {
+    setInfoOpen(true);
+
+    if (businessInfo || !business?.id) {
+      return;
+    }
+
+    if (business.info) {
+      setBusinessInfo(business.info);
+      return;
+    }
+
+    try {
+      setInfoLoading(true);
+      setInfoError(null);
+      const res = await fetch(`${API_BASE_URL}/business-info/?business=${business.id}`);
+      if (!res.ok) {
+        throw new Error(lang === "jp" ? "店舗情報を読み込めませんでした" : "Failed to load business info");
+      }
+
+      const payload = await res.json();
+      setBusinessInfo(normalizeBusinessInfoPayload(payload));
+    } catch (e: unknown) {
+      setInfoError(e instanceof Error ? e.message : lang === "jp" ? "店舗情報を読み込めませんでした" : "Failed to load business info");
+    } finally {
+      setInfoLoading(false);
+    }
+  }, [business, businessInfo, lang]);
 
   useEffect(() => {
     if (!slug) return;
@@ -468,13 +598,11 @@ export default function PublicBusinessPage() {
     );
   }
 
-  // Use business.photos for carousel; fallback to hero image if no photos
-  const businessPhotos = business.photos && business.photos.length > 0 ? business.photos : null;
-  const heroSrc = business.hero_image || business.hero_image
-  console.log(heroSrc);
+  const heroSrc = business.hero_image_url || business.hero_image || business.photos?.[0]?.image_url || null;
   const catMeta = CATEGORY_META[business.category] ?? { labelJp: "ビジネス", labelEn: "Business", tagJp: business.category, tagEn: business.category };
   const { isOpen, currentlyOpen, h: todayH } = getOpenStatus(business.hours ?? [], business.closed_days ?? []);
   const firstClosed = business.closed_days?.[0] ?? null;
+  const businessInitials = getInitials(business.business_name);
 
   const filteredItems = business.menu_items?.filter((i) => (i.category_en || i.category_jp || "Other") === activeTab) ?? [];
   const serviceItems = business.service_items ?? [];
@@ -482,138 +610,180 @@ export default function PublicBusinessPage() {
   const bookLinks = business.booking_links ?? [];
   const orderLinks: OrderLink[] = business.order_links ?? [];
   const socLinks = business.social_links ?? [];
+  const infoDescription = lang === "jp"
+    ? businessInfo?.description_jp || businessInfo?.description_en || ""
+    : businessInfo?.description_en || businessInfo?.description_jp || "";
+  const hasBusinessInfo = Boolean(
+    businessInfo?.description_jp || businessInfo?.description_en || businessInfo?.seating_capacity != null
+  );
 
-  const photosForCarousel = (business?.photos || []).map(photo => ({
-    ...photo,
+  const photosForCarousel = (business?.photos || []).map((photo) => ({
     id: String(photo.id),
+    image: photo.image_url,
+    alt: lang === "jp" ? photo.alt_text_jp : photo.alt_text_en,
   }));
 
   return (
     <div className="min-h-screen bg-[#ececec] px-2 py-2 font-sans antialiased sm:px-4 sm:py-4">
       <div className="mx-auto max-w-[500px] pb-8">
         <div className="overflow-hidden rounded-[26px] bg-white shadow-[0_16px_38px_rgba(0,0,0,0.14)]">
-          <div className="relative h-[280px] overflow-hidden bg-[var(--bg-lighter)]">
+          <div className="relative h-[260px] overflow-hidden bg-[#18120d]">
             {photosForCarousel.length > 0 ? (
               <BusinessPhotoCarousel
                 photos={photosForCarousel}
                 businessName={business.business_name}
                 heroSrc={heroSrc}
-                category={catMeta.labelEn}
-                address={business.address}
+                fillContainer
+                showIdentity={false}
+                className="h-full rounded-none"
               />
             ) : heroSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={heroSrc} alt={business.business_name} className="h-full w-full object-cover" />
+              <img
+                src={heroSrc}
+                alt={business.business_name}
+                className="absolute inset-0 h-full w-full scale-[1.08] object-cover"
+              />
             ) : (
-              <div className="h-full w-full bg-gradient-to-br from-stone-300 via-stone-400 to-stone-600" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,#c88f4b,transparent_38%),linear-gradient(135deg,#2b211a,#120d09_55%,#302319)]" />
             )}
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18),rgba(0,0,0,0.72))]" />
 
             <button
               onClick={() => setLang((l) => (l === "jp" ? "en" : "jp"))}
-              className="absolute right-3 top-3 rounded-full bg-black/40 px-3 py-1 text-[11px] font-black tracking-[0.14em] text-white backdrop-blur z-20"
+              className="absolute right-4 top-4 z-20 rounded-full border border-white/15 bg-black/28 px-3 py-1 text-[11px] font-black tracking-[0.16em] text-white backdrop-blur-md"
             >
               {lang === "jp" ? "EN" : "JP"}
             </button>
-            {/* Animated Notice Button */}
             <NoticeButton />
-          </div>
 
-          <div className="px-3 pb-3 pt-2">
-            <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap border-b border-[#e8e8e8] pb-2 text-[11px] font-bold scrollbar-hide">
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${currentlyOpen ? "bg-[#39e600]" : isOpen ? "bg-amber-400" : "bg-[#bcbcbc]"}`} />
-              <span className={`${currentlyOpen ? "text-[#05b100]" : isOpen ? "text-amber-600" : "text-[#7f7f7f]"}`}>
-                {lang === "jp"
-                  ? currentlyOpen ? "営業中" : isOpen ? "本日営業" : "定休日"
-                  : currentlyOpen ? "Open Now" : isOpen ? "Open Today" : "Day Off"}
-              </span>
-            </div>
-            {todayH?.opening_time && (
-              <>
-                <span className="shrink-0 text-[#c5c5c5]">●</span>
-                <div className="flex items-center gap-1 text-[#2a2a2a] shrink-0 whitespace-nowrap">
-                  <Clock size={11} className="shrink-0" />
-                  <span>
-                    {lang === "jp" ? "営業時間: " : "Open Hours: "}
-                    {fmt(todayH.opening_time)} - {fmt(todayH.closing_time)}
-                    {todayH.last_order_time && (
-                      <span className="text-[#7b7b7b]"> (L.O. {fmt(todayH.last_order_time)})</span>
+            <div className="absolute inset-x-0 bottom-[52px] z-10 px-4">
+              <div className="flex items-end justify-between gap-3 rounded-[22px] px-4 py-5 text-white">
+                <div className="flex min-w-0 flex-1 items-center gap-3 pr-2">
+                  <div className="relative flex h-[58px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-white/25 bg-[linear-gradient(135deg,#7040d5,#7d4fe5_55%,#5a2fc6)]">
+                    {heroSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={heroSrc}
+                        alt={business.business_name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-[22px] font-black tracking-[-0.08em] text-white">{businessInitials}</span>
                     )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-[clamp(1.05rem,2.8vw,1.75rem)] font-black leading-[0.95] tracking-[-0.06em] text-white break-words [overflow-wrap:anywhere]">
+                      {business.business_name}
+                    </h1>
+                    <p className="mt-1.5 line-clamp-1 text-[14px] font-semibold text-white/88">
+                      {lang === "jp" ? catMeta.labelJp : catMeta.labelEn}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2 pb-1">
+                  <button
+                    type="button"
+                    onClick={openInfoDialog}
+                    aria-label={lang === "jp" ? "店舗情報" : "Business info"}
+                    className="flex h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-[#f4b400] text-[#181818] shadow-[0_16px_28px_rgba(0,0,0,0.24)] backdrop-blur transition-transform active:scale-[0.97]"
+                  >
+                    <span className="text-[#ffffff]">
+                      <IOSInfoIconSvg />
+                    </span>
+                  </button>
+                  {business.maps_url && (
+                    <a
+                      href={business.maps_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={lang === "jp" ? "道順" : "Directions"}
+                      className="flex h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-white/94 text-[#2875e8] shadow-[0_16px_28px_rgba(0,0,0,0.24)] backdrop-blur transition-transform active:scale-[0.97]"
+                    >
+                      <IOSLocationIconSvg />
+                    </a>
+                  )}
+                  {business.phone_number && (
+                    <a
+                      href={`tel:${business.phone_number}`}
+                      aria-label={lang === "jp" ? "電話する" : "Call"}
+                      className="flex h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-[#19c85e] text-white shadow-[0_16px_28px_rgba(0,0,0,0.24)] transition-transform active:scale-[0.97]"
+                    >
+                      <IOSPhoneIconSvg />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute inset-x-0 bottom-0 z-10 border-t border-black/8 bg-white/96 backdrop-blur-md">
+              <div className="flex min-h-[42px] items-center justify-between gap-4 overflow-x-auto whitespace-nowrap px-4 py-2 text-center scrollbar-hide">
+                <div className="flex min-w-0 shrink-0 items-center gap-2 text-[9px] font-black text-[#151515] sm:text-[9px]">
+                  <span className={`h-3 w-3 shrink-0 rounded-full ${currentlyOpen ? "bg-[#14bf43]" : isOpen ? "bg-[#e8a534]" : "bg-[#bcbcbc]"}`} />
+                  <span className="truncate">
+                    {lang === "jp"
+                      ? currentlyOpen ? "営業中" : isOpen ? "本日営業" : "定休日"
+                      : currentlyOpen ? "Open Now" : isOpen ? "Open Today" : "Day Off"}
                   </span>
                 </div>
-              </>
-            )}
-            {firstClosed && (
-              <>
-                <span className="shrink-0 text-[#c5c5c5]">●</span>
-                <div className="flex items-center gap-1 text-[#2a2a2a] shrink-0 whitespace-nowrap">
-                  <CalendarX size={11} className="shrink-0" />
-                  <span>
-                    {lang === "jp" ? "定休日：" : "Closed: "}
-                    {lang === "jp" ? DAY_LABELS[firstClosed.day_of_week]?.jp : DAY_LABELS[firstClosed.day_of_week]?.en}
+
+                <div className="flex min-w-0 shrink items-center gap-1.5 text-[9px] font-black text-[#232323] sm:text-[9px]">
+                  <Clock size={14} className="shrink-0 text-[#8e8e8e]" />
+                  <span className="truncate">
+                    {todayH?.opening_time
+                      ? `${lang === "jp" ? "営業時間" : "Open Hours"}: ${fmt(todayH.opening_time)} - ${fmt(todayH.closing_time)}${todayH.last_order_time ? ` (L.O. ${fmt(todayH.last_order_time)})` : ""}`
+                      : lang === "jp" ? "営業時間未設定" : "Hours unavailable"}
                   </span>
                 </div>
-              </>
-            )}
+
+                <div className="flex min-w-0 shrink-0 items-center gap-1.5 text-[9px] font-black text-[#232323] sm:text-[9px]">
+                  <CalendarX size={14} className="shrink-0 text-[#ff2c24]" />
+                  <span className="truncate">
+                    {firstClosed
+                      ? `${lang === "jp" ? "定休日" : "Closed"}: ${lang === "jp" ? DAY_LABELS[firstClosed.day_of_week]?.jp : DAY_LABELS[firstClosed.day_of_week]?.en}`
+                      : lang === "jp" ? "定休日なし" : "No set closure"}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
-            <div className="grid grid-cols-2 gap-3 py-3">
-            {business.maps_url ? (
-              <a
-                href={business.maps_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex h-12 items-center justify-center gap-2 rounded-[16px] border border-[#dfdfdf] bg-white text-[15px] font-black text-[#7f8fb5] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)] transition-transform active:scale-[0.98]"
-              >
-                <Navigation size={17} className="text-[#2f63ff]" />
-                {lang === "jp" ? "道順" : "Directions"}
-              </a>
-            ) : <div />}
-            {business.phone_number ? (
-              <a
-                href={`tel:${business.phone_number}`}
-                className="flex h-12 items-center justify-center gap-2 rounded-[16px] bg-[#08c74f] text-[15px] font-black text-white transition-transform active:scale-[0.98]"
-              >
-                <Phone size={17} />
-                {lang === "jp" ? "電話する" : "Call"}
-              </a>
-            ) : <div />}
-          </div>
-
+          <div className="px-3 pb-1 pt-3">
             {(bookLinks.length > 0 || orderLinks.length > 0 || couponItems.length > 0 || socLinks.length > 0) && (
               <div className="overflow-hidden rounded-[16px] border-[1px] border-[#cfd6df] bg-white shadow-[0_10px_24px_rgba(0,0,0,0.08)]">
-                <div className="grid grid-cols-4 border-b-[1.5px] border-[#cfd6df] bg-[#dfdfdf]">
-                  {[
-                    { key: "booking" as const, label: "Booking", enabled: bookLinks.length > 0 },
-                    { key: "order" as const, label: "Order", enabled: orderLinks.length > 0 },
-                    { key: "coupon" as const, label: "Coupon", enabled: couponItems.length > 0 },
-                    { key: "sns" as const, label: "SNS", enabled: socLinks.length > 0 },
-                  ].map((tab, index) => {
-                    const isActive = bookingTab === tab.key;
-                    return (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        disabled={!tab.enabled}
-                        onClick={() => tab.enabled && setBookingTab(tab.key)}
-                        className={`h-[36px] px-2 text-center text-[clamp(0.95rem,2.4vw,1.35rem)] font-black leading-none tracking-[-0.04em] transition-colors ${
-                          index < 3 ? "border-r-[1.5px] border-[#cfd6df]" : ""
-                        } ${
-                          isActive
-                            ? "bg-white text-black"
-                            : "bg-[#dddddd] text-[#a7a7a7]"
-                        } ${tab.enabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
-                      >
-                        {tab.label}
-                      </button>
-                    );
-                  })}
-                </div>
+                {availableActionTabs.length > 1 && (
+                  <div className="grid grid-flow-col auto-cols-fr border-b-[1.5px] border-[#cfd6df] bg-[#dfdfdf]">
+                    {[
+                      { key: "booking" as const, label: "Booking", enabled: bookLinks.length > 0 },
+                      { key: "order" as const, label: "Order", enabled: orderLinks.length > 0 },
+                      { key: "coupon" as const, label: "Coupon", enabled: couponItems.length > 0 },
+                      { key: "sns" as const, label: "SNS", enabled: socLinks.length > 0 },
+                    ].filter((tab) => tab.enabled).map((tab, index, visibleTabs) => {
+                      const isActive = bookingTab === tab.key;
+                      return (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => setBookingTab(tab.key)}
+                          className={`h-[36px] px-2 text-center text-[clamp(0.95rem,2.4vw,1.35rem)] font-black leading-none tracking-[-0.04em] transition-colors ${
+                            index < visibleTabs.length - 1 ? "border-r-[1.5px] border-[#cfd6df]" : ""
+                          } ${
+                            isActive
+                              ? "bg-white text-black"
+                              : "bg-[#dddddd] text-[#a7a7a7]"
+                          } cursor-pointer`}
+                        >
+                          {tab.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
-                <div className="min-h-[60px] px-4 py-4">
+                <div className="min-h-[52px] px-4 py-3">
                   {bookingTab === "booking" && (
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       {bookLinks.map((link) => {
                         const cfg = BOOKING_CFG[link.platform] ?? BOOKING_CFG.custom;
                         const label = link.custom_name || (lang === "jp" ? cfg.jp.replace(/\n.*/, "") : cfg.en.replace(/\n.*/, ""));
@@ -627,14 +797,14 @@ export default function PublicBusinessPage() {
                             title={label}
                             className="flex items-center justify-center active:scale-[0.97] transition-transform"
                           >
-                            <BookingIcon platform={link.platform} className="h-[58px] w-[58px] rounded-[16px] shadow-[0_3px_8px_rgba(0,0,0,0.08)]" />
+                            <BookingIcon platform={link.platform} className="h-[36px] w-[36px] rounded-[12px] shadow-[0_3px_8px_rgba(0,0,0,0.08)]" />
                           </a>
                         );
                       })}
                     </div>
                   )}
                   {bookingTab === "order" && (
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       {orderLinks.map((link) => {
                         const cfg = ORDER_CFG[link.platform] ?? ORDER_CFG.custom;
                         const label = link.custom_name || (lang === "jp" ? cfg.jp : cfg.en);
@@ -648,7 +818,7 @@ export default function PublicBusinessPage() {
                             title={label}
                             className="flex items-center justify-center active:scale-[0.97] transition-transform"
                           >
-                            <OrderIcon platform={link.platform} className="h-[58px] w-[58px] rounded-[16px] shadow-[0_3px_8px_rgba(0,0,0,0.08)]" />
+                            <OrderIcon platform={link.platform} className="h-[36px] w-[36px] rounded-[12px] shadow-[0_3px_8px_rgba(0,0,0,0.08)]" />
                           </a>
                         );
                       })}
@@ -684,7 +854,7 @@ export default function PublicBusinessPage() {
                   )}
 
                   {bookingTab === "sns" && (
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       {socLinks.map((link) => (
                         <a
                           key={link.id}
@@ -695,7 +865,7 @@ export default function PublicBusinessPage() {
                           title={link.custom_name || SOCIAL_LABELS[link.platform] || link.platform}
                           className="flex items-center justify-center active:scale-[0.97] transition-transform"
                         >
-                          <SocialIcon platform={link.platform} className="h-[58px] w-[58px] rounded-[16px] shadow-[0_3px_8px_rgba(0,0,0,0.08)]" />
+                          <SocialIcon platform={link.platform} className="h-[36px] w-[36px] rounded-[12px] shadow-[0_3px_8px_rgba(0,0,0,0.08)]" />
                         </a>
                       ))}
                     </div>
@@ -706,9 +876,10 @@ export default function PublicBusinessPage() {
           </div>
 
         {(menuTabs.length > 0 || serviceItems.length > 0) && (
-          <div className="mt-3 overflow-hidden border-t border-[#ececec] bg-white">
+          <div className="mt-1 overflow-hidden border-t border-[#ececec] bg-white">
+            <div className="max-h-[70vh] overflow-y-auto">
             {menuTabs.length > 0 && (
-              <div className="grid grid-flow-col auto-cols-fr border-b-[1.5px] border-[#cfd6df] bg-[#dfdfdf] overflow-x-auto scrollbar-hide">
+              <div ref={menuTabsRef} className="sticky top-0 z-20 grid grid-flow-col auto-cols-fr border-b-[1.5px] border-[#cfd6df] bg-[#dfdfdf] shadow-[0_8px_18px_rgba(255,255,255,0.92)] overflow-x-auto scrollbar-hide">
                 {menuTabs.map((tab) => {
                   const sourceItem = business.menu_items?.find((item) => (item.category_en || item.category_jp || "Other") === tab.key);
                   return (
@@ -731,31 +902,67 @@ export default function PublicBusinessPage() {
               </div>
             )}
 
-            <div className="max-h-[70vh] overflow-y-auto">
             {filteredItems.length > 0 && (
               <div>
                 <div className="divide-y divide-[#efefef]">
                 {filteredItems.map((item) => {
                   const photos = item.photos ?? [];
+                  const currentPhotoIndex = menuPhotoIndexes[item.id] ?? 0;
+                  const currentPhoto = photos[currentPhotoIndex] ?? null;
                   return (
                     <div key={item.id} className="px-4 py-5">
-                      {photos.length > 0 ? (
-                        <div className="flex max-h-[400px] flex-col snap-y snap-mandatory gap-3 overflow-y-auto overflow-x-hidden rounded-[8px] scrollbar-hide">
-                          {photos.map((photo, index) => (
-                            <button
-                              key={photo.id}
-                              type="button"
-                              onClick={() => openLightbox(photos, index)}
-                              className="block w-full shrink-0 snap-start overflow-hidden rounded-[8px]"
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={photo.image_url}
-                                alt={photo.label ?? ""}
-                                className="h-[400px] w-full object-cover"
-                              />
-                            </button>
-                          ))}
+                      {currentPhoto ? (
+                        <div
+                          className="relative overflow-hidden rounded-[8px]"
+                          onPointerEnter={revealMenuTabs}
+                          onMouseMove={revealMenuTabs}
+                          onWheelCapture={handleMenuImageWheel}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => openLightbox(photos, currentPhotoIndex)}
+                            className="block w-full overflow-hidden rounded-[8px]"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={currentPhoto.image_url}
+                              alt={currentPhoto.label ?? ""}
+                              className="w-full object-cover"
+                            />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openLightbox(photos, currentPhotoIndex)}
+                            aria-label={lang === "jp" ? "全画面表示" : "Fullscreen"}
+                            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-black/42 text-white backdrop-blur-sm transition-colors hover:bg-black/56"
+                          >
+                            <Maximize2 size={20} />
+                          </button>
+
+                          {photos.length > 1 && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => shiftMenuPhoto(item.id, photos.length, -1)}
+                                aria-label={lang === "jp" ? "前の画像" : "Previous image"}
+                                className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/42 text-white backdrop-blur-sm transition-colors hover:bg-black/56"
+                              >
+                                <ChevronLeft size={20} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => shiftMenuPhoto(item.id, photos.length, 1)}
+                                aria-label={lang === "jp" ? "次の画像" : "Next image"}
+                                className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/42 text-white backdrop-blur-sm transition-colors hover:bg-black/56"
+                              >
+                                <ChevronRight size={20} />
+                              </button>
+                              <div className="absolute bottom-3 right-3 rounded-full bg-black/50 px-2.5 py-1 text-[10px] font-black text-white/90 backdrop-blur-sm">
+                                {currentPhotoIndex + 1} / {photos.length}
+                              </div>
+                            </>
+                          )}
                         </div>
                       ) : (
                         <div className="h-[176px] w-full rounded-[8px] bg-gradient-to-br from-stone-100 to-stone-200" />
@@ -814,7 +1021,6 @@ export default function PublicBusinessPage() {
 
       </div>
 
-      {/* ── Lightbox ──────────────────────────────────────────── */}
       {lightbox && (
         <Lightbox
           photos={lightbox.photos}
@@ -825,6 +1031,70 @@ export default function PublicBusinessPage() {
           onJump={onJump}
         />
       )}
+
+      <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+        <DialogContent className="max-w-[calc(100%-1.5rem)] rounded-[24px] border-0 bg-white p-0 shadow-[0_24px_70px_rgba(0,0,0,0.2)] sm:max-w-md" showCloseButton={false}>
+          <div className="overflow-hidden rounded-[24px]">
+            <div className="bg-[linear-gradient(135deg,#1f2937,#111827_55%,#0f172a)] px-5 pb-5 pt-6 text-white">
+              <DialogHeader className="gap-2 pr-10">
+                <DialogTitle className="text-[1.05rem] font-black tracking-[-0.04em] text-white">
+                  {lang === "jp" ? "店舗情報" : "Business Info"}
+                </DialogTitle>
+                <DialogDescription className="text-sm leading-6 text-white/72">
+                  {business.business_name}
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <div className="space-y-4 px-5 py-5 text-[#1f2937]">
+              {infoLoading ? (
+                <div className="flex items-center gap-2 rounded-[18px] bg-[#f5f6f7] px-4 py-3 text-sm font-semibold text-[#475569]">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>{lang === "jp" ? "店舗情報を読み込み中..." : "Loading business info..."}</span>
+                </div>
+              ) : infoError ? (
+                <div className="flex items-start gap-2 rounded-[18px] bg-[#fff1f2] px-4 py-3 text-sm font-semibold text-[#be123c]">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{infoError}</span>
+                </div>
+              ) : hasBusinessInfo ? (
+                <>
+                  {infoDescription && (
+                    <section className="rounded-[20px] bg-[#f6f7f8] px-4 py-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#64748b]">
+                        {lang === "jp" ? "店舗説明" : "Description"}
+                      </p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#111827]">
+                        {infoDescription}
+                      </p>
+                    </section>
+                  )}
+
+                  {businessInfo?.seating_capacity != null && (
+                    <section className="rounded-[20px] bg-[#f6f7f8] px-4 py-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#64748b]">
+                        {lang === "jp" ? "座席数" : "Seating Capacity"}
+                      </p>
+                      <p className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#111827]">
+                        {businessInfo.seating_capacity}
+                        <span className="ml-1 text-sm font-bold text-[#64748b]">
+                          {lang === "jp" ? "席" : "seats"}
+                        </span>
+                      </p>
+                    </section>
+                  )}
+                </>
+              ) : (
+                <div className="rounded-[20px] bg-[#f6f7f8] px-4 py-4 text-sm font-semibold leading-6 text-[#475569]">
+                  {lang === "jp"
+                    ? "現在表示できる店舗情報はありません。"
+                    : "No business info is available right now."}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

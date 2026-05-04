@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertCircle,
@@ -22,6 +23,9 @@ interface Step1FormProps {
     category: string;
     address?: string;
     phone_number?: string;
+    description_jp?: string;
+    description_en?: string;
+    seating_capacity?: number;
     hero_image?: File | null;
     latitude?: number;
     longitude?: number;
@@ -66,6 +70,12 @@ export function Step1Form({
     category: currentBusiness?.category || "restaurant",
     address: currentBusiness?.address || "",
     phone_number: currentBusiness?.phone_number || "",
+    description_jp: currentBusiness?.info?.description_jp || "",
+    description_en: currentBusiness?.info?.description_en || "",
+    seating_capacity:
+      currentBusiness?.info?.seating_capacity != null
+        ? String(currentBusiness.info.seating_capacity)
+        : "",
   });
 
   const [fieldErrors, setFieldErrors] = useState<{
@@ -73,6 +83,7 @@ export function Step1Form({
     category?: string;
     address?: string;
     phone_number?: string;
+    seating_capacity?: string;
     hero_image?: string;
   }>({});
 
@@ -162,6 +173,12 @@ export function Step1Form({
       errors.address = "住所を入力してください / Address is required";
     if (!formData.phone_number.trim())
       errors.phone_number = "電話番号を入力してください / Phone number is required";
+    if (
+      formData.seating_capacity.trim() &&
+      (!Number.isFinite(Number(formData.seating_capacity)) || Number(formData.seating_capacity) < 1)
+    ) {
+      errors.seating_capacity = "座席数は1以上を入力してください / Seating capacity must be at least 1";
+    }
     if (!heroFile && !heroPreview)
       errors.hero_image = "ヒーロー画像をアップロードしてください / Hero image is required";
 
@@ -173,6 +190,9 @@ export function Step1Form({
     setFieldErrors({});
     await onSubmit({
       ...formData,
+      seating_capacity: formData.seating_capacity
+        ? parseInt(formData.seating_capacity, 10)
+        : undefined,
       hero_image: heroFile,
       latitude: lat ? parseFloat(lat) : undefined,
       longitude: lng ? parseFloat(lng) : undefined,
@@ -264,6 +284,75 @@ export function Step1Form({
           </div>
           {fieldErrors.category && (
             <p className="mt-2 text-xs text-red-500">{fieldErrors.category}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+          <div className="flex items-center gap-1 mb-2">
+            <Label htmlFor="description_jp" className="font-semibold text-gray-900">
+              店舗説明 / Description (JP)
+            </Label>
+            <span className="text-xs text-gray-400">任意</span>
+          </div>
+          <Textarea
+            id="description_jp"
+            name="description_jp"
+            value={formData.description_jp}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, description_jp: e.target.value }))
+            }
+            placeholder="お店の特徴やこだわりを日本語で入力してください"
+            className="min-h-[132px] rounded-xl border-gray-200 bg-white px-4 py-3"
+            disabled={loading}
+          />
+        </div>
+
+        <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+          <div className="flex items-center gap-1 mb-2">
+            <Label htmlFor="description_en" className="font-semibold text-gray-900">
+              店舗説明 / Description (EN)
+            </Label>
+            <span className="text-xs text-gray-400">Optional</span>
+          </div>
+          <Textarea
+            id="description_en"
+            name="description_en"
+            value={formData.description_en}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, description_en: e.target.value }))
+            }
+            placeholder="Add your business description in English"
+            className="min-h-[132px] rounded-xl border-gray-200 bg-white px-4 py-3"
+            disabled={loading}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+          <div className="flex items-center gap-1 mb-2">
+            <Label htmlFor="seating_capacity" className="font-semibold text-gray-900">
+              座席数 / Seating Capacity
+            </Label>
+            <span className="text-xs text-gray-400">任意</span>
+          </div>
+          <Input
+            id="seating_capacity"
+            name="seating_capacity"
+            type="number"
+            min="1"
+            value={formData.seating_capacity}
+            onChange={handleChange}
+            placeholder="50"
+            className={`border rounded-xl bg-white px-4 py-3 h-12 focus:outline-none focus:ring-2 focus:ring-gray-900 ${
+              fieldErrors.seating_capacity ? "border-red-400" : "border-gray-200"
+            }`}
+            disabled={loading}
+          />
+          {fieldErrors.seating_capacity && (
+            <p className="mt-1 text-xs text-red-500">{fieldErrors.seating_capacity}</p>
           )}
         </div>
       </div>

@@ -7,6 +7,15 @@ import {
   BusinessNotice,
 } from "@/lib/api/business-notices";
 
+function normalizeNotices(data: unknown): BusinessNotice[] {
+  if (Array.isArray(data)) return data as BusinessNotice[];
+  if (data && typeof data === "object" && "results" in data) {
+    const results = (data as { results: unknown }).results;
+    if (Array.isArray(results)) return results as BusinessNotice[];
+  }
+  return [];
+}
+
 export function useBusinessNotices() {
   const [notices, setNotices] = useState<BusinessNotice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -17,7 +26,7 @@ export function useBusinessNotices() {
     setError(null);
     try {
       const data = await listBusinessNotices();
-      setNotices(data);
+      setNotices(normalizeNotices(data));
     } catch (err: any) {
       setError(err?.message || "Failed to load notices");
     } finally {

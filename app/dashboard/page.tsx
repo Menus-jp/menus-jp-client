@@ -26,10 +26,26 @@ import {
   Phone,
   Plus,
   Search,
+  MoreVertical,
+  Trash2,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { BusinessProfile } from "@/lib/types/business";
 
-// ---------- Constants & helpers ----------
 
 type BusinessCategory =
   | "restaurant"
@@ -97,8 +113,6 @@ function normalizeBusinesses(data: unknown): BusinessProfile[] {
   return [];
 }
 
-// ---------- Filtering ----------
-
 type StatusFilter = "all" | "published" | "draft";
 
 const STATUS_OPTIONS: Array<{
@@ -136,8 +150,6 @@ function matchesCategory(
 ): boolean {
   return category === "all" || business.category === category;
 }
-
-// ---------- Small UI atoms ----------
 
 function StatusBadge({ published }: { published: boolean }) {
   const base =
@@ -187,8 +199,6 @@ function Pill({ active, onClick, children }: PillProps) {
   );
 }
 
-// ---------- Skeletons ----------
-
 function BusinessCardSkeleton() {
   return (
     <div
@@ -221,7 +231,6 @@ function BusinessCardSkeleton() {
   );
 }
 
-// ---------- Business card ----------
 
 const BusinessCard = React.memo(function BusinessCard({
   business,
@@ -372,8 +381,6 @@ const BusinessCard = React.memo(function BusinessCard({
   );
 });
 
-// ---------- Add-business tile ----------
-
 function AddBusinessTile() {
   return (
     <Link
@@ -393,8 +400,6 @@ function AddBusinessTile() {
     </Link>
   );
 }
-
-// ---------- Filters ----------
 
 interface BusinessFiltersProps {
   query: string;
@@ -471,8 +476,6 @@ function BusinessFilters({
   );
 }
 
-// ---------- Empty state ----------
-
 interface EmptyStateProps {
   filtered?: boolean;
   onClearFilters?: () => void;
@@ -534,8 +537,6 @@ function EmptyState({ filtered, onClearFilters }: EmptyStateProps) {
   );
 }
 
-// ---------- Nav ----------
-
 interface NavUser {
   username?: string | null;
   first_name?: string | null;
@@ -549,9 +550,11 @@ function getInitial(user: NavUser | null | undefined): string {
 function DashboardNav({
   user,
   onLogout,
+  onDeleteBusiness,
 }: {
   user: NavUser | null | undefined;
   onLogout: () => void;
+  onDeleteBusiness: () => void;
 }) {
   const displayName = user?.first_name || user?.username || "";
 
@@ -585,27 +588,44 @@ function DashboardNav({
               {displayName}
             </span>
           )}
-          <button
-            type="button"
-            onClick={onLogout}
-            aria-label="ログアウト"
-            className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded"
-          >
-            <LogOut className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden sm:inline">ログアウト</span>
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="メニュー"
+                className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded p-1"
+              >
+                <MoreVertical className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 bg-gray-900 border-gray-700">
+              <DropdownMenuItem
+                onSelect={onDeleteBusiness}
+                variant="destructive"
+                className="text-red-400"
+              >
+                <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
+                店舗を削除 / Delete Business
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={onLogout}
+                className="text-gray-300"
+              >
+                <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
+                ログアウト / Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </nav>
   );
 }
 
-// ---------- Page ----------
-
 function DashboardContent() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { error, listBusinesses } = useBusinessApi();
+  const { error, listBusinesses, deleteBusiness } = useBusinessApi();
 
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
   const [fetchLoading, setFetchLoading] = useState(true);
@@ -614,6 +634,11 @@ function DashboardContent() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [category, setCategory] = useState<BusinessCategory | "all">("all");
+  
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedBusinessForDelete, setSelectedBusinessForDelete] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Pin the latest fetcher in a ref so the effect doesn't re-fire
   // every render if `listBusinesses` isn't memoized in the hook.
@@ -644,6 +669,32 @@ function DashboardContent() {
     router.push("/");
   }, [logout, router]);
 
+  const handleOpenDeleteDialog = useCallback(() => {
+    setShowDeleteDialog(true);
+    setDeleteError(null);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (selectedBusinessForDelete === null) return;
+    
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteBusiness(selectedBusinessForDelete);
+      setBusinesses((prev) => 
+        prev.filter((b) => b.id !== selectedBusinessForDelete)
+      );
+      setShowDeleteDialog(false);
+      setSelectedBusinessForDelete(null);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "店舗の削除に失敗しました";
+      setDeleteError(message);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedBusinessForDelete, deleteBusiness]);
+
   const filtered = useMemo(
     () =>
       businesses
@@ -666,7 +717,68 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <DashboardNav user={user} onLogout={handleLogout} />
+      <DashboardNav user={user} onLogout={handleLogout} onDeleteBusiness={handleOpenDeleteDialog} />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="bg-white border-gray-200">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900">
+              店舗を削除 / Delete Business
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600">
+              削除する店舗を選択してください。この操作は取り消せません。
+              <br />
+              Select a business to delete. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          {deleteError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-600">{deleteError}</p>
+            </div>
+          )}
+
+          {businesses.length === 0 ? (
+            <p className="text-sm text-gray-500 py-4">
+              削除可能な店舗がありません。
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+              {businesses.map((business) => (
+                <button
+                  key={business.id}
+                  type="button"
+                  onClick={() => setSelectedBusinessForDelete(business.id)}
+                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                    selectedBusinessForDelete === business.id
+                      ? "bg-red-50 border-red-300"
+                      : "border-gray-200 hover:bg-gray-100"
+                  }`}
+                >
+                  <p className="font-semibold text-gray-900">{business.business_name}</p>
+                  <p className="text-sm text-gray-500">{business.category}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <AlertDialogCancel
+              className="bg-white border-gray-200 text-gray-900 hover:bg-gray-50"
+              disabled={isDeleting}
+            >
+              キャンセル / Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={selectedBusinessForDelete === null || isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+            >
+              {isDeleting ? "削除中..." : "削除 / Delete"}
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
         <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">

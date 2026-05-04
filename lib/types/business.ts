@@ -10,6 +10,16 @@ export interface OrderLink {
   updated_at: string;
 }
 
+export interface BusinessInfo {
+  id: number;
+  business: number;
+  description_jp?: string | null;
+  description_en?: string | null;
+  seating_capacity?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Business types
 export interface BusinessProfile {
   id: number;
@@ -33,6 +43,7 @@ export interface BusinessProfile {
   created_at: string;
   updated_at: string;
   published_at?: string;
+  info?: BusinessInfo | null;
 }
 
 export interface BusinessHours {
@@ -212,4 +223,5 @@ export interface BusinessDetail extends BusinessProfile {
   social_links?: SocialLink[];
   order_links?: OrderLink[];
   public_page?: PublicPage;
+  info?: BusinessInfo | null;
 }

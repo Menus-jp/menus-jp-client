@@ -5,6 +5,7 @@ import apiClient from "@/lib/api/auth";
 import { timeToISODatetime } from "@/lib/utils";
 import {
   BusinessProfile,
+  BusinessInfo,
   BusinessHours,
   BulkHoursEntry,
   BusinessPhoto,
@@ -52,6 +53,49 @@ export function useBusinessApi() {
     }
   }, []);
 
+  const listBusinessInfo = useCallback(async (businessId?: number) => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get("/business-info/", {
+        params: businessId ? { business: businessId } : undefined,
+      });
+      return res.data as BusinessInfo[] | BusinessInfo;
+    } catch (err: any) {
+      setError(extractError(err, "Failed to load business info"));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getBusinessInfo = useCallback(async (businessId: number) => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get("/business-info/", {
+        params: { business: businessId },
+      });
+      return res.data as BusinessInfo;
+    } catch (err: any) {
+      setError(extractError(err, "Failed to load business info"));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getBusinessInfoById = useCallback(async (infoId: number) => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get(`/business-info/${infoId}/`);
+      return res.data as BusinessInfo;
+    } catch (err: any) {
+      setError(extractError(err, "Failed to load business info"));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const createBusiness = useCallback(
     async (data: {
       business_name: string;
@@ -87,6 +131,11 @@ export function useBusinessApi() {
   );
 
   type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image?: File | null };
+  type BusinessInfoPatch = {
+    description_jp?: string | null;
+    description_en?: string | null;
+    seating_capacity?: number | null;
+  };
 
   const updateBusiness = useCallback(
     async (id: number, data: BusinessPatch) => {
@@ -106,6 +155,40 @@ export function useBusinessApi() {
         return res.data as BusinessProfile;
       } catch (err: any) {
         setError(extractError(err, "Failed to update business"));
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const updateBusinessInfo = useCallback(
+    async (businessId: number, data: BusinessInfoPatch) => {
+      try {
+        setLoading(true);
+        const res = await apiClient.patch("/business-info/", data, {
+          params: { business: businessId },
+        });
+        return res.data as BusinessInfo;
+      } catch (err: any) {
+        setError(extractError(err, "Failed to update business info"));
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const updateBusinessInfoById = useCallback(
+    async (infoId: number, data: BusinessInfoPatch) => {
+      try {
+        setLoading(true);
+        const res = await apiClient.patch(`/business-info/${infoId}/`, data);
+        return res.data as BusinessInfo;
+      } catch (err: any) {
+        setError(extractError(err, "Failed to update business info"));
         throw err;
       } finally {
         setLoading(false);
@@ -728,8 +811,13 @@ export function useBusinessApi() {
     // Business
     listBusinesses,
     getBusinessById,
+    listBusinessInfo,
+    getBusinessInfo,
+    getBusinessInfoById,
     createBusiness,
     updateBusiness,
+    updateBusinessInfo,
+    updateBusinessInfoById,
     publishBusiness,
     unpublishBusiness,
     deleteBusiness,

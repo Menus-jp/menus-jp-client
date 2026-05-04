@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,18 +8,31 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import { BusinessNotice } from "@/lib/api/business-notices";
 
 interface NoticeAddDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (text: string, expires_at?: string | null) => Promise<void>;
   loading?: boolean;
+  notice?: BusinessNotice | null;
 }
 
-export function NoticeAddDialog({ open, onOpenChange, onSubmit, loading }: NoticeAddDialogProps) {
+export function NoticeAddDialog({ open, onOpenChange, onSubmit, loading, notice }: NoticeAddDialogProps) {
   const [text, setText] = useState("");
   const [expiresAt, setExpiresAt] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (notice) {
+      setText(notice.text);
+      setExpiresAt(notice.expires_at ? notice.expires_at.split("T")[0] : "");
+    } else {
+      setText("");
+      setExpiresAt("");
+    }
+    setError(null);
+  }, [notice, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +60,9 @@ export function NoticeAddDialog({ open, onOpenChange, onSubmit, loading }: Notic
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>お知らせを追加 / Add Notice</DialogTitle>
+            <DialogTitle>
+              {notice ? "お知らせを編集 / Edit Notice" : "お知らせを追加 / Add Notice"}
+            </DialogTitle>
           </DialogHeader>
           <textarea
             className="w-full border rounded p-2 mt-4 min-h-[80px]"
@@ -71,7 +86,7 @@ export function NoticeAddDialog({ open, onOpenChange, onSubmit, loading }: Notic
           {error && <div className="text-red-500 text-xs mt-2">{error}</div>}
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={loading}>
-              追加 / Add
+              {notice ? "保存 / Save" : "追加 / Add"}
             </Button>
             <DialogClose asChild>
               <Button type="button" variant="outline">

@@ -20,6 +20,7 @@ function OnboardingContent() {
     clearError,
     createBusiness,
     updateBusiness,
+    updateBusinessInfo,
     publishBusiness,
     uploadPhoto,
     listPhotos,
@@ -45,6 +46,9 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
     category: string;
     address?: string;
     phone_number?: string;
+    description_jp?: string;
+    description_en?: string;
+    seating_capacity?: number;
     hero_image?: File | null;
     latitude?: number;
     longitude?: number;
@@ -64,7 +68,12 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
           ...(data.hero_image ? { hero_image: data.hero_image } : {}),
         };
         const updated = await updateBusiness(business.id, patch);
-        const merged = { ...business, ...updated };
+        const info = await updateBusinessInfo(business.id, {
+          description_jp: data.description_jp?.trim() || null,
+          description_en: data.description_en?.trim() || null,
+          seating_capacity: data.seating_capacity ?? null,
+        });
+        const merged = { ...business, ...updated, info };
         setBusiness(merged);
         setIsNewBusiness(false);
         setSuccessMessage("Business profile updated!");
@@ -81,9 +90,15 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
         longitude: data.longitude,
         hero_image: data.hero_image,
       });
+      const info = await updateBusinessInfo(newBusiness.id, {
+        description_jp: data.description_jp?.trim() || null,
+        description_en: data.description_en?.trim() || null,
+        seating_capacity: data.seating_capacity ?? null,
+      });
       let merged = {
         ...newBusiness,
         category: data.category as BusinessProfile["category"],
+        info,
       };
       setBusiness(merged);
       setIsNewBusiness(true);

@@ -23,6 +23,7 @@ import{
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -43,7 +44,23 @@ import {
   Percent,
   Image as ImageIcon,
   UtensilsCrossed,
+  MoreVertical,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   BusinessProfile,
   BusinessDetail,
@@ -475,7 +492,6 @@ function MenuItemCard({
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      {/* ── Card Header ── */}
       <div
         className="flex items-center gap-3 px-5 py-4 cursor-pointer select-none"
         onClick={() => onUpdate({ isOpen: !item.isOpen })}
@@ -528,11 +544,9 @@ function MenuItemCard({
         </div>
       </div>
 
-      {/* ── Card Body ── */}
       {item.isOpen && (
         <div className="border-t border-gray-100 divide-y divide-gray-100">
 
-          {/* Category + Photos */}
           <div className="px-5 py-4">
             <div className="flex items-center gap-1.5 mb-4">
               <Tag className="h-3.5 w-3.5 text-gray-400" />
@@ -541,7 +555,6 @@ function MenuItemCard({
               </span>
             </div>
 
-            {/* ── JP block ── */}
             <div className="space-y-2">
               <Label className="text-[11px] text-gray-400 block">カテゴリ名 (JP)</Label>
               <Input
@@ -613,7 +626,6 @@ function MenuItemCard({
 
             <div className="my-4 border-t border-gray-100" />
 
-            {/* ── EN block ── */}
             <div className="space-y-2">
               <Label className="text-[11px] text-gray-400 block">Category Name (EN)</Label>
               <Input
@@ -684,7 +696,6 @@ function MenuItemCard({
             </div>
           </div>
 
-          {/* Discount */}
           <div className="px-5 py-4">
             <div className="flex items-center gap-1.5 mb-3">
               <Percent className="h-3.5 w-3.5 text-gray-400" />
@@ -731,7 +742,6 @@ function MenuItemCard({
             </div>
           </div>
 
-          {/* Hours */}
           <div className="px-5 py-4">
             <button
               type="button"
@@ -850,7 +860,9 @@ function BusinessDetailContent() {
   const businessId = parseInt(params.id as string);
   const {
     getBusinessById,
+    getBusinessInfo,
     updateBusiness,
+    updateBusinessInfo,
     bulkCreateBusinessHours,
     bulkUpdateBusinessHours,
     bulkCreateClosedDays,
@@ -862,10 +874,16 @@ function BusinessDetailContent() {
     deleteMenuItemPhoto,
     bulkCreateMenuItemHours,
     bulkUpdateMenuItemHours,
+    deleteBusiness,
   } = useBusinessApi();
 
   const [business, setBusiness] = useState<BusinessDetail | null>(null);
   const [formData, setFormData] = useState<Partial<BusinessProfile>>({});
+  const [infoForm, setInfoForm] = useState({
+    description_jp: "",
+    description_en: "",
+    seating_capacity: "",
+  });
   const [fetchLoading, setFetchLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [hours, setHours] = useState<Record<string, HourEntry>>(defaultHours);
@@ -894,6 +912,9 @@ function BusinessDetailContent() {
   const [order, setOrder] = useState<Record<OrderPlatformKey, LinkState>>(initOrderState);
   const [social, setSocial] = useState<Record<SocialPlatformKey, LinkState>>(initSocialState);
   const [linksError, setLinksError] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!businessId) return;
@@ -903,12 +924,28 @@ function BusinessDetailContent() {
       try {
         // Single call — response embeds hours, closed_days, photos
         const data = (await getBusinessById(businessId)) as BusinessDetail;
+        let businessInfo = data.info ?? null;
+        if (!businessInfo) {
+          try {
+            businessInfo = await getBusinessInfo(businessId);
+          } catch {
+            businessInfo = null;
+          }
+        }
         setBusiness(data);
         setFormData({
           business_name: data.business_name,
           address: data.address,
           phone_number: data.phone_number,
           website: data.website,
+        });
+        setInfoForm({
+          description_jp: businessInfo?.description_jp || "",
+          description_en: businessInfo?.description_en || "",
+          seating_capacity:
+            businessInfo?.seating_capacity != null
+              ? String(businessInfo.seating_capacity)
+              : "",
         });
 
         // Map hours — delete stale single-char day_of_week entries, then map valid ones
@@ -1069,6 +1106,13 @@ function BusinessDetailContent() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleInfoChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = e.target;
+    setInfoForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleHoursChange = (
@@ -1539,6 +1583,22 @@ function BusinessDetailContent() {
     }
   };
 
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteBusiness(businessId);
+      setShowDeleteDialog(false);
+      router.push("/dashboard");
+    } catch (err: any) {
+      const message =
+        err instanceof Error ? err.message : "店舗の削除に失敗しました";
+      setDeleteError(message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleRemovePhoto = async (photoId: number) => {
     setPhotoError(null);
     try {
@@ -1594,6 +1654,14 @@ function BusinessDetailContent() {
         onboarding_step: nextStep,
         hero_image: undefined, // Always pass as File | null | undefined
       });
+      const savedInfo = await updateBusinessInfo(businessId, {
+        description_jp: infoForm.description_jp.trim() || null,
+        description_en: infoForm.description_en.trim() || null,
+        seating_capacity: infoForm.seating_capacity
+          ? parseInt(infoForm.seating_capacity, 10)
+          : null,
+      });
+      setBusiness((prev) => (prev ? { ...prev, info: savedInfo } : prev));
 
       const hoursPayload = DAYS_OF_WEEK.map((day) => {
         const h = hours[day.key];
@@ -1724,7 +1792,7 @@ function BusinessDetailContent() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <Link href="/manage">
             <Button
               variant="ghost"
@@ -1735,15 +1803,83 @@ function BusinessDetailContent() {
               戻る / Back
             </Button>
           </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="メニュー"
+                className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 rounded p-0"
+              >
+                <MoreVertical className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onSelect={() => setShowDeleteDialog(true)}
+                variant="destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
+                この店舗を削除 / Delete Business
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="bg-white border-gray-200">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900">
+              店舗を削除しますか？
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600">
+              「{business?.business_name}」を削除します。この操作は取り消せません。
+              <br />
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {deleteError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-600">{deleteError}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <AlertDialogCancel
+              className="bg-white border-gray-200 text-gray-900 hover:bg-gray-50"
+              disabled={isDeleting}
+            >
+              キャンセル / Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+            >
+              {isDeleting ? "削除中..." : "削除 / Delete"}
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">
-            お店の情報を確認・編集してください
-          </h1>
-          <p className="text-sm text-gray-500">{business.business_name}</p>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+              お店の情報を確認・編集してください
+            </h1>
+            <p className="text-sm text-gray-500">{business.business_name}</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowDeleteDialog(true)}
+            className="shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+          >
+            <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
+            削除 / Delete
+          </Button>
         </div>
 
         {saveError && (
@@ -1790,6 +1926,52 @@ function BusinessDetailContent() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div className="sm:col-span-2">
+                <Label className="font-semibold text-gray-900 mb-2 block">
+                  店舗説明 / Description (JP)
+                </Label>
+                <Textarea
+                  name="description_jp"
+                  value={infoForm.description_jp}
+                  onChange={handleInfoChange}
+                  placeholder="お店の特徴やこだわりを日本語で入力してください"
+                  className="min-h-[120px] border-gray-300 bg-white"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label className="font-semibold text-gray-900 mb-2 block">
+                  店舗説明 / Description (EN)
+                </Label>
+                <Textarea
+                  name="description_en"
+                  value={infoForm.description_en}
+                  onChange={handleInfoChange}
+                  placeholder="Add your business description in English"
+                  className="min-h-[120px] border-gray-300 bg-white"
+                />
+              </div>
+              <div>
+                <div className="flex items-center gap-1 mb-2">
+                  <Label className="font-semibold text-gray-900">
+                    座席数 / Seating Capacity
+                  </Label>
+                  <span className="text-xs text-gray-400">(任意)</span>
+                </div>
+                <Input
+                  name="seating_capacity"
+                  type="number"
+                  min="1"
+                  value={infoForm.seating_capacity}
+                  onChange={handleInfoChange}
+                  placeholder="50"
+                  className="border-gray-300"
+                />
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import apiClient from "@/lib/api/auth";
 
@@ -10,7 +10,13 @@ interface BusinessNotice {
   expires_at: string | null;
 }
 
-export function NoticeButton() {
+interface NoticeButtonProps {
+  className?: string;
+  compact?: boolean;
+  label?: string;
+}
+
+export function NoticeButton({ className, compact = false, label = "Notice" }: NoticeButtonProps) {
   const [open, setOpen] = useState(false);
   const [responsenotices, setNotices] = useState<BusinessNotice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,7 +41,6 @@ export function NoticeButton() {
           (response.data.notices || []).filter((n: any) => {
             if (!n.expires_at) return true;
             const expires = new Date(n.expires_at);
-            console.log(expires)
             const today = new Date();
             return expires >= today;
           }).map((n: any) => ({
@@ -58,14 +63,16 @@ export function NoticeButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="absolute right-3 top-14 flex items-center gap-2 rounded-full bg-gradient-to-r from-yellow-300 via-orange-400 to-pink-400 px-4 py-1.5 text-[13px] font-extrabold text-white shadow-lg animate-bounce z-20"
-        style={{ animationDuration: "1.2s" }}
+        className={className ?? (compact
+          ? "flex h-15 w-15 items-center justify-center rounded-[20px] bg-[#f4c400] text-white shadow-[0_16px_28px_rgba(0,0,0,0.22)] transition-transform hover:scale-[1.02]"
+          : "absolute right-3 top-14 flex items-center gap-2 rounded-full bg-gradient-to-r from-yellow-300 via-orange-400 to-pink-400 px-4 py-1.5 text-[13px] font-extrabold text-white shadow-lg animate-bounce z-20")}
+        style={compact ? undefined : { animationDuration: "1.2s" }}
         aria-label="Show Notices"
       >
         <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
           <path fill="currentColor" d="M12 2a7 7 0 0 0-7 7v3.28c0 .43-.18.85-.5 1.15l-1.3 1.2A2 2 0 0 0 5 19h14a2 2 0 0 0 1.8-2.37l-1.3-1.2a1.5 1.5 0 0 1-.5-1.15V9a7 7 0 0 0-7-7Zm0 20a3 3 0 0 1-3-3h6a3 3 0 0 1-3 3Z" />
         </svg>
-        Notice
+        {!compact && label}
       </button>
 
       {open && (
