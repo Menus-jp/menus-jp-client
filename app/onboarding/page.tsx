@@ -39,7 +39,7 @@ function OnboardingContent() {
     }
   }, [successMessage]);
 
-type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image?: File | null };
+type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image" | "logo"> & { hero_image?: File | null; logo?: File | null };
 
   const handleStep1Submit = async (data: {
     business_name: string;
@@ -50,6 +50,7 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
     description_en?: string;
     seating_capacity?: number;
     hero_image?: File | null;
+    logo?: File | null;
     latitude?: number;
     longitude?: number;
   }) => {
@@ -66,6 +67,7 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
           latitude: data.latitude,
           longitude: data.longitude,
           ...(data.hero_image ? { hero_image: data.hero_image } : {}),
+          ...(data.logo ? { logo: data.logo } : {}),
         };
         const updated = await updateBusiness(business.id, patch);
         const info = await updateBusinessInfo(business.id, {
@@ -113,7 +115,7 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
     if (!business) return;
     try {
       clearError();
-      const { hero_image, ...rest } = data;
+      const { hero_image, logo, ...rest } = data;
       const updated = await updateBusiness(business.id, { ...rest });
       setBusiness((prev) => ({ ...prev!, ...updated }));
       setSuccessMessage("Contact information saved!");
@@ -127,7 +129,7 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
     if (!business) return;
     try {
       clearError();
-      const { hero_image, ...rest } = data;
+      const { hero_image, logo, ...rest } = data;
       const updated = await updateBusiness(business.id, { ...rest });
       setBusiness((prev) => ({ ...prev!, ...updated }));
       setSuccessMessage("Links configured!");
@@ -141,7 +143,7 @@ type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image
     if (!business) return;
     try {
       clearError();
-      const { hero_image, ...rest } = data;
+      const { hero_image, logo, ...rest } = data;
       const updated = await updateBusiness(business.id, { ...rest });
       setBusiness((prev) => ({ ...prev!, ...updated }));
       setSuccessMessage("Plan selected!");
