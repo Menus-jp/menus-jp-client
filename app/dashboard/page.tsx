@@ -599,14 +599,14 @@ function DashboardNav({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 bg-gray-900 border-gray-700">
-              <DropdownMenuItem
+              {/* <DropdownMenuItem
                 onSelect={onDeleteBusiness}
                 variant="destructive"
                 className="text-red-400"
               >
                 <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
                 店舗を削除 / Delete Business
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
               <DropdownMenuItem
                 onSelect={onLogout}
                 className="text-gray-300"
@@ -639,6 +639,11 @@ function DashboardContent() {
   const [selectedBusinessForDelete, setSelectedBusinessForDelete] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Redirect to manage route
+  useEffect(() => {
+    router.push("/manage");
+  }, [router]);
 
   // Pin the latest fetcher in a ref so the effect doesn't re-fire
   // every render if `listBusinesses` isn't memoized in the hook.

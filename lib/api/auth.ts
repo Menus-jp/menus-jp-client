@@ -122,6 +122,43 @@ export const authApi = {
     }
   },
 
+  updateUserProfile: async (
+    userId: number,
+    payload: {
+      first_name?: string;
+      last_name?: string;
+      phone_number?: string;
+      bio?: string;
+    },
+  ) => {
+    try {
+      // Ensure all fields are sent to the API, including empty strings
+      const updatePayload = {
+        first_name: String(payload.first_name ?? ""),
+        last_name: String(payload.last_name ?? ""),
+        phone_number: String(payload.phone_number ?? ""),
+        bio: String(payload.bio ?? ""),
+      };
+            
+      const response = await apiClient.patch(
+        `/users/${userId}/update_profile/`,
+        updatePayload,
+      );
+      
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const errorData: AuthError = error.response?.data || {
+          error: "REQUEST_ERROR",
+          message: error.message,
+          details: "Failed to update user profile",
+        };
+        throw errorData;
+      }
+      throw error;
+    }
+  },
+
   logout: () => {
     // Clear local storage and cookies
     localStorage.removeItem("token");

@@ -10,7 +10,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useBusinessApi } from "@/lib/hooks/useBusinessApi";
+import { authApi } from "@/lib/api/auth";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import {
@@ -437,7 +439,7 @@ const BusinessCard = React.memo(function BusinessCard({
             <Button
               variant="outline"
               onClick={() => setQrCodeDialogOpen(true)}
-              className="h-10 w-10 rounded-full border-[var(--secondary-color)] hover:border-gray-400 p-0 flex-shrink-0"
+              className="h-10 w-10 rounded-xl border-[var(--secondary-color)] hover:border-gray-400 p-0 flex-shrink-0"
               aria-label={`${business.business_name} のQRコードを表示`}
             >
               <QrCode className="h-6 w-6 text-[var(--primary-lighter)]" aria-hidden="true" />
@@ -453,7 +455,7 @@ const BusinessCard = React.memo(function BusinessCard({
             <Button
               asChild
               variant="outline"
-              className="h-10 w-10 rounded-full border-[var(--border-color)] hover:border-gray-400 p-0 flex-shrink-0"
+              className="h-10 w-10 rounded-xl border-[var(--primary-color)] hover:border-gray-400 p-0 flex-shrink-0"
             >
               <Link
                 href={`/${business.slug}`}
@@ -605,10 +607,12 @@ function DashboardNav({
   user,
   onLogout,
   onDeleteBusiness,
+  onShowProfile,
 }: {
   user: NavUser | null | undefined;
   onLogout: () => void;
   onDeleteBusiness: () => void;
+  onShowProfile: () => void;
 }) {
   const displayName = user?.first_name || user?.username || "";
 
@@ -654,13 +658,20 @@ function DashboardNav({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 bg-gray-900 border-gray-700">
               <DropdownMenuItem
+                onSelect={onShowProfile}
+                className="text-gray-300"
+              >
+                <span className="h-4 w-4 mr-2" aria-hidden="true">👤</span>
+                プロフィール / Profile
+              </DropdownMenuItem>
+              {/* <DropdownMenuItem
                 onSelect={onDeleteBusiness}
                 variant="destructive"
                 className="text-red-400"
               >
                 <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
                 店舗を削除 / Delete Business
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
               <DropdownMenuItem
                 onSelect={onLogout}
                 className="text-gray-300"
@@ -690,6 +701,19 @@ function DashboardContent() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [collapsedNotices, setCollapsedNotices] = useState<Record<number, boolean>>({});
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [profileData, setProfileData] = useState<Record<string, unknown> | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    first_name: "",
+    last_name: "",
+    phone_number: "",
+    bio: "",
+  });
+  const [profileUpdating, setProfileUpdating] = useState(false);
+  const [profileUpdateError, setProfileUpdateError] = useState<string | null>(null);
 
   const listBusinessesRef = useRef(listBusinesses);
   listBusinessesRef.current = listBusinesses;
@@ -722,6 +746,52 @@ function DashboardContent() {
     setShowDeleteDialog(true);
     setDeleteError(null);
   }, []);
+
+  const handleShowProfile = useCallback(async () => {
+    setShowProfileDialog(true);
+    setProfileLoading(true);
+    setProfileError(null);
+    setIsEditingProfile(false);
+    try {
+      const data = await authApi.getCurrentUser();
+      setProfileData(data);
+      setEditFormData({
+        first_name: (data.first_name as string) || "",
+        last_name: (data.last_name as string) || "",
+        phone_number: (data.phone_number as string) || "",
+        bio: (data.bio as string) || "",
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "プロフィールの取得に失敗しました";
+      setProfileError(message);
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  const handleUpdateProfile = useCallback(async () => {
+    if (!user?.id || !profileData) return;
+
+    setProfileUpdating(true);
+    setProfileUpdateError(null);
+    try {
+      const updated = await authApi.updateUserProfile(user.id, {
+        first_name: editFormData.first_name,
+        last_name: editFormData.last_name,
+        phone_number: editFormData.phone_number,
+        bio: editFormData.bio,
+      });
+      setProfileData(updated);
+      setIsEditingProfile(false);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "プロフィールの更新に失敗しました";
+      setProfileUpdateError(message);
+    } finally {
+      setProfileUpdating(false);
+    }
+  }, [user?.id, profileData, editFormData]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (selectedBusinessForDelete === null) return;
@@ -766,7 +836,203 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-light)]">
-      <DashboardNav user={user} onLogout={handleLogout} onDeleteBusiness={handleOpenDeleteDialog} />
+      <DashboardNav user={user} onLogout={handleLogout} onDeleteBusiness={handleOpenDeleteDialog} onShowProfile={handleShowProfile} />
+
+      <AlertDialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
+        <AlertDialogContent className="bg-white border-gray-200 max-w-md">
+          <AlertDialogHeader>
+            <div className="flex justify-between items-center">
+              <AlertDialogTitle className="text-gray-900">
+                プロフィール / Profile
+              </AlertDialogTitle>
+              {!isEditingProfile && profileData && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingProfile(true)}
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                  aria-label="Edit profile"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </AlertDialogHeader>
+          
+          {profileLoading ? (
+            <div className="space-y-4 py-8">
+              <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center mx-auto animate-pulse" />
+              <div className="space-y-3">
+                <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 bg-gray-200 rounded animate-pulse" />
+              </div>
+            </div>
+          ) : profileError ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 my-4">
+              <p className="text-sm text-red-600">{profileError}</p>
+            </div>
+          ) : profileData ? (
+            <div className="space-y-4">
+              {profileUpdateError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-600">{profileUpdateError}</p>
+                </div>
+              )}
+              
+              {(profileData.profile_picture_url as string | null) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profileData.profile_picture_url as string}
+                  alt="Profile"
+                  className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-gray-200"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center mx-auto text-4xl">
+                  👤
+                </div>
+              )}
+              
+              {isEditingProfile ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-gray-500 font-semibold block mb-1">
+                      名前 / First Name
+                    </label>
+                    <Input
+                      type="text"
+                      value={editFormData.first_name}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          first_name: e.target.value,
+                        })
+                      }
+                      placeholder="First name"
+                      className="border-gray-200"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs text-gray-500 font-semibold block mb-1">
+                      姓 / Last Name
+                    </label>
+                    <Input
+                      type="text"
+                      value={editFormData.last_name}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          last_name: e.target.value,
+                        })
+                      }
+                      placeholder="Last name"
+                      className="border-gray-200"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs text-gray-500 font-semibold block mb-1">
+                      電話番号 / Phone Number
+                    </label>
+                    <Input
+                      type="tel"
+                      value={editFormData.phone_number}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          phone_number: e.target.value,
+                        })
+                      }
+                      placeholder="Phone number"
+                      className="border-gray-200"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs text-gray-500 font-semibold block mb-1">
+                      自己紹介 / Bio
+                    </label>
+                    <Input
+                      type="text"
+                      value={editFormData.bio}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          bio: e.target.value,
+                        })
+                      }
+                      placeholder="Bio"
+                      className="border-gray-200"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-gray-500 font-semibold">名前 / Name</p>
+                    <p className="text-sm text-gray-900 font-medium">
+                      {(profileData.first_name as string) && (profileData.last_name as string)
+                        ? `${profileData.first_name} ${profileData.last_name}`
+                        : (profileData.first_name as string) || (profileData.username as string) || "N/A"}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-gray-500 font-semibold">ユーザー名 / Username</p>
+                    <p className="text-sm text-gray-900 font-medium">{(profileData.username as string) || "N/A"}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-gray-500 font-semibold">メール / Email</p>
+                    <p className="text-sm text-gray-900 font-medium">{(profileData.email as string) || "N/A"}</p>
+                  </div>
+                  
+                  {(profileData.phone_number as string) && (
+                    <div>
+                      <p className="text-xs text-gray-500 font-semibold">電話番号 / Phone</p>
+                      <p className="text-sm text-gray-900 font-medium">{profileData.phone_number as string}</p>
+                    </div>
+                  )}
+                  
+                  {(profileData.bio as string) && (
+                    <div>
+                      <p className="text-xs text-gray-500 font-semibold">自己紹介 / Bio</p>
+                      <p className="text-sm text-gray-900 font-medium">{profileData.bio as string}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : null}
+          
+          <div className="flex justify-end gap-3">
+            {isEditingProfile ? (
+              <>
+                <AlertDialogCancel
+                  className="bg-white border-gray-200 text-gray-900 hover:bg-gray-50"
+                  onClick={() => {
+                    setIsEditingProfile(false);
+                    setProfileUpdateError(null);
+                  }}
+                  disabled={profileUpdating}
+                >
+                  キャンセル / Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleUpdateProfile}
+                  disabled={profileUpdating}
+                  className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                >
+                  {profileUpdating ? "更新中..." : "保存 / Save"}
+                </AlertDialogAction>
+              </>
+            ) : (
+              <AlertDialogCancel className="bg-white border-gray-200 text-gray-900 hover:bg-gray-50">
+                閉じる / Close
+              </AlertDialogCancel>
+            )}
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent className="bg-white border-gray-200">

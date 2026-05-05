@@ -411,15 +411,15 @@ function Lightbox({
         <>
           <button
             onClick={(e) => { e.stopPropagation(); onPrev(); }}
-            className="absolute left-3 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+            className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/42 text-black backdrop-blur-sm transition-colors hover:bg-black"
           >
-            <ChevronLeft size={22} className="text-white" />
+            <ChevronLeft size={22} className="text-black" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onNext(); }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+            className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/42 text-black backdrop-blur-sm transition-colors hover:bg-black"
           >
-            <ChevronRight size={22} className="text-white" />
+            <ChevronRight size={22} className="text-black" />
           </button>
         </>
       )}
@@ -554,11 +554,22 @@ export default function PublicBusinessPage() {
 
   const menuTabs = useMemo(() => {
     if (!business?.menu_items) return [];
+    
+    // First, find all categories that have items with photos
+    const categoriesWithPhotos = new Set<string>();
+    for (const item of business.menu_items) {
+      if ((item.photos?.length ?? 0) > 0) {
+        const key = item.category_en || item.category_jp || "Other";
+        categoriesWithPhotos.add(key);
+      }
+    }
+    
+    // Now create tabs only for categories with photos
     const seen = new Set<string>();
     const tabs: { jp: string; en: string; key: string }[] = [];
     for (const item of business.menu_items) {
       const key = item.category_en || item.category_jp || "Other";
-      if (!seen.has(key)) {
+      if (categoriesWithPhotos.has(key) && !seen.has(key)) {
         seen.add(key);
         tabs.push({ jp: item.category_jp || key, en: item.category_en || key, key });
       }
@@ -671,7 +682,7 @@ export default function PublicBusinessPage() {
             <div className="absolute inset-x-0 bottom-[52px] z-10 px-4">
               <div className="flex items-end justify-between gap-3 rounded-[22px] px-4 py-5 text-white">
                 <div className="flex min-w-0 flex-1 items-center gap-3 pr-2">
-                  <div className="relative flex h-[58px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-white/25 bg-[linear-gradient(135deg,#7040d5,#7d4fe5_55%,#5a2fc6)]">
+                  <div className="relative flex h-[58px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-white/25">
                     {heroSrc ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -855,7 +866,7 @@ export default function PublicBusinessPage() {
                               <span className="absolute left-1/2 top-0 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
                               <span className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
                               <p className="m-0 flex items-baseline gap-0.5 whitespace-nowrap font-black leading-none tracking-[-0.06em] text-white">
-                                <span className="text-[1.1rem]">{item.discount_percentage}%</span>
+                                <span className="text-[1.1rem]">{Math.round(Number(item.discount_percentage) || 0)}%</span>
                                 <span className="ml-0.5 text-[0.65rem] font-extrabold tracking-[0.02em]">{label}</span>
                               </p>
                             </div>
@@ -888,17 +899,17 @@ export default function PublicBusinessPage() {
           </div>
 
         {(menuTabs.length > 0 || serviceItems.length > 0) && (
-          <div className="mt-1 overflow-hidden border-t border-[#ececec] bg-white">
+          <div className="mt-1 overflow-x-auto border-t border-[#ececec] bg-white scrollbar-hide">
             <div className="max-h-[70vh] overflow-y-auto">
             {menuTabs.length > 0 && (
-              <div ref={menuTabsRef} className="sticky top-0 z-20 grid grid-flow-col auto-cols-fr border-b-[1.5px] border-[#cfd6df] bg-[#dfdfdf] shadow-[0_8px_18px_rgba(255,255,255,0.92)] overflow-x-auto scrollbar-hide">
+              <div ref={menuTabsRef} className="sticky top-0 z-20 flex border-b-[1.5px] border-[#cfd6df] bg-[#dfdfdf] shadow-[0_8px_18px_rgba(255,255,255,0.92)] overflow-x-auto scrollbar-hide">
                 {menuTabs.map((tab) => {
                   const sourceItem = business.menu_items?.find((item) => (item.category_en || item.category_jp || "Other") === tab.key);
                   return (
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
-                    className={`min-w-[108px] border-r border-[#cfd6df] px-3 py-3 text-center transition-colors last:border-r-0 ${
+                    className={`shrink-0 min-w-[108px] border-r border-[#cfd6df] px-3 py-3 text-center transition-colors last:border-r-0 ${
                       activeTab === tab.key
                         ? "bg-white text-black"
                         : "bg-[#dddddd] text-[#9f9f9f]"
@@ -926,20 +937,22 @@ export default function PublicBusinessPage() {
                       {currentPhoto ? (
                         <div
                           className="relative overflow-hidden rounded-[8px]"
+                          style={{
+                            aspectRatio: "210 / 297",
+                          }}
                           onPointerEnter={revealMenuTabs}
                           onMouseMove={revealMenuTabs}
-                          onWheelCapture={handleMenuImageWheel}
                         >
                           <button
                             type="button"
                             onClick={() => openLightbox(photos, currentPhotoIndex)}
-                            className="block w-full overflow-hidden rounded-[8px]"
+                            className="block h-full w-full overflow-hidden rounded-[8px]"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={currentPhoto.image_url}
                               alt={currentPhoto.label ?? ""}
-                              className="w-full object-cover"
+                              className="h-full w-full object-cover"
                             />
                           </button>
 
@@ -947,7 +960,7 @@ export default function PublicBusinessPage() {
                             type="button"
                             onClick={() => openLightbox(photos, currentPhotoIndex)}
                             aria-label={lang === "jp" ? "全画面表示" : "Fullscreen"}
-                            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-black/42 text-white backdrop-blur-sm transition-colors hover:bg-black/56"
+                            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-black/42 text-black backdrop-blur-sm transition-colors hover:bg-black"
                           >
                             <Maximize2 size={20} />
                           </button>
@@ -958,15 +971,15 @@ export default function PublicBusinessPage() {
                                 type="button"
                                 onClick={() => shiftMenuPhoto(item.id, photos.length, -1)}
                                 aria-label={lang === "jp" ? "前の画像" : "Previous image"}
-                                className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/42 text-white backdrop-blur-sm transition-colors hover:bg-black/56"
+                                className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/42 text-black backdrop-blur-sm transition-colors hover:bg-black"
                               >
-                                <ChevronLeft size={20} />
+                                <ChevronLeft size={20}/>
                               </button>
                               <button
                                 type="button"
                                 onClick={() => shiftMenuPhoto(item.id, photos.length, 1)}
                                 aria-label={lang === "jp" ? "次の画像" : "Next image"}
-                                className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/42 text-white backdrop-blur-sm transition-colors hover:bg-black/56"
+                                className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/42 text-black backdrop-blur-sm transition-colors hover:bg-black"
                               >
                                 <ChevronRight size={20} />
                               </button>
@@ -977,7 +990,12 @@ export default function PublicBusinessPage() {
                           )}
                         </div>
                       ) : (
-                        <div className="h-[176px] w-full rounded-[8px] bg-gradient-to-br from-stone-100 to-stone-200" />
+                        <div
+                          className="w-full rounded-[8px] bg-gradient-to-br from-stone-100 to-stone-200"
+                          style={{
+                            aspectRatio: "210 / 297",
+                          }}
+                        />
                       )}
                       </div>
                     

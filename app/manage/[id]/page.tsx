@@ -7,6 +7,11 @@ import Link from "next/link";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { useBusinessApi } from "@/lib/hooks/useBusinessApi";
 import apiClient from "@/lib/api/auth";
+import {
+  updateBookingLinkStatus,
+  updateOrderLinkStatus,
+  updateSocialLinkStatus,
+} from "@/lib/api/business-links";
 import{
   ALL_SOCIAL_PLATFORMS,
   BOOKING_PLATFORMS,
@@ -2485,36 +2490,72 @@ function BusinessDetailContent() {
                 [key]: { ...prev[key], url },
               }))
             }
-            onBookingToggle={(key, enabled) =>
+            onBookingToggle={(key, enabled) => {
               setBooking((prev) => ({
                 ...prev,
                 [key]: { ...prev[key], enabled },
-              }))
-            }
+              }));
+              // Make API call to update status
+              const link = booking[key];
+              if (link?.id) {
+                updateBookingLinkStatus(link.id, link.url, enabled).catch((err) => {
+                  setLinksError(extractErrorMessage(err, "Booking link update failed"));
+                  // Revert UI on error
+                  setBooking((prev) => ({
+                    ...prev,
+                    [key]: { ...prev[key], enabled: !enabled },
+                  }));
+                });
+              }
+            }}
             onOrderChange={(key, url) =>
               setOrder((prev) => ({
                 ...prev,
                 [key]: { ...prev[key], url },
               }))
             }
-            onOrderToggle={(key, enabled) =>
+            onOrderToggle={(key, enabled) => {
               setOrder((prev) => ({
                 ...prev,
                 [key]: { ...prev[key], enabled },
-              }))
-            }
+              }));
+              // Make API call to update status
+              const link = order[key];
+              if (link?.id) {
+                updateOrderLinkStatus(link.id, link.url, enabled).catch((err) => {
+                  setLinksError(extractErrorMessage(err, "Order link update failed"));
+                  // Revert UI on error
+                  setOrder((prev) => ({
+                    ...prev,
+                    [key]: { ...prev[key], enabled: !enabled },
+                  }));
+                });
+              }
+            }}
             onSocialChange={(key, url) =>
               setSocial((prev) => ({
                 ...prev,
                 [key]: { ...prev[key], url },
               }))
             }
-            onSocialToggle={(key, enabled) =>
+            onSocialToggle={(key, enabled) => {
               setSocial((prev) => ({
                 ...prev,
                 [key]: { ...prev[key], enabled },
-              }))
-            }
+              }));
+              // Make API call to update status
+              const link = social[key];
+              if (link?.id) {
+                updateSocialLinkStatus(link.id, link.url, enabled).catch((err) => {
+                  setLinksError(extractErrorMessage(err, "Social link update failed"));
+                  // Revert UI on error
+                  setSocial((prev) => ({
+                    ...prev,
+                    [key]: { ...prev[key], enabled: !enabled },
+                  }));
+                });
+              }
+            }}
           />
         </div>
 
