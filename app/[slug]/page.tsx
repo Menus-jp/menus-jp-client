@@ -899,8 +899,8 @@ export default function PublicBusinessPage() {
           </div>
 
         {(menuTabs.length > 0 || serviceItems.length > 0) && (
-          <div className="mt-1 overflow-x-auto border-t border-[#ececec] bg-white scrollbar-hide">
-            <div className="max-h-[70vh] overflow-y-auto">
+          <div className="mt-1 border-t border-[#ececec] bg-white overflow-hidden">
+            <div>
             {menuTabs.length > 0 && (
               <div ref={menuTabsRef} className="sticky top-0 z-20 flex border-b-[1.5px] border-[#cfd6df] bg-[#dfdfdf] shadow-[0_8px_18px_rgba(255,255,255,0.92)] overflow-x-auto scrollbar-hide">
                 {menuTabs.map((tab) => {
