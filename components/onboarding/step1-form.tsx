@@ -27,6 +27,7 @@ interface Step1FormProps {
     description_en?: string;
     seating_capacity?: number;
     hero_image?: File | null;
+    logo?: File | null;
     latitude?: number;
     longitude?: number;
   }) => Promise<void>;
@@ -64,6 +65,7 @@ export function Step1Form({
   currentBusiness,
 }: Step1FormProps) {
   const heroInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     business_name: currentBusiness?.business_name || "",
@@ -85,6 +87,7 @@ export function Step1Form({
     phone_number?: string;
     seating_capacity?: string;
     hero_image?: string;
+    logo?: string;
   }>({});
 
   // Hero banner state
@@ -92,6 +95,10 @@ export function Step1Form({
   const [heroPreview, setHeroPreview] = useState<string | null>(
     currentBusiness?.hero_image || null,
   );
+
+  // Logo state
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   // Location state
   const [mapsUrl, setMapsUrl] = useState("");
@@ -146,6 +153,20 @@ export function Step1Form({
     setHeroPreview(null);
   };
 
+  const handleLogoPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+    setFieldErrors((prev) => ({ ...prev, logo: undefined }));
+    e.target.value = "";
+  };
+
+  const handleLogoRemove = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+  };
+
   const handleMapsUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value;
     setMapsUrl(url);
@@ -194,6 +215,7 @@ export function Step1Form({
         ? parseInt(formData.seating_capacity, 10)
         : undefined,
       hero_image: heroFile,
+      logo: logoFile,
       latitude: lat ? parseFloat(lat) : undefined,
       longitude: lng ? parseFloat(lng) : undefined,
     });
@@ -433,30 +455,30 @@ export function Step1Form({
         </div>
 
         {heroPreview ? (
-          <div className="relative rounded-xl overflow-hidden border border-gray-200 group">
+          <div className="relative rounded-xl overflow-hidden border border-gray-200">
             <img
               src={heroPreview}
               alt="Hero preview"
               className="w-full h-48 object-cover"
             />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+            <div className="absolute top-3 right-3 flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => heroInputRef.current?.click()}
                 disabled={loading}
-                className="bg-white text-gray-900 text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-gray-100 transition-colors"
+                className="bg-white hover:bg-gray-100 text-gray-900 p-2 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                title="Change"
               >
-                <ImagePlus className="h-3.5 w-3.5" />
-                変更 / Change
+                <ImagePlus className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={handleHeroRemove}
                 disabled={loading}
-                className="bg-red-500 text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 hover:bg-red-600 transition-colors"
+                className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                title="Remove"
               >
-                <Trash2 className="h-3.5 w-3.5" />
-                削除 / Remove
+                <Trash2 className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -486,6 +508,82 @@ export function Step1Form({
         />
         {fieldErrors.hero_image && (
           <p className="mt-2 text-xs text-red-500">{fieldErrors.hero_image}</p>
+        )}
+      </div>
+
+      <div className={`p-4 border rounded-lg bg-gray-50 ${
+        fieldErrors.logo ? "border-red-400" : "border-gray-200"
+      }`}>
+        <div className="mb-3">
+          <div className="flex items-center gap-1">
+            <Label className="font-semibold text-gray-900">
+              ロゴ / Logo
+            </Label>
+            <span className="text-xs text-gray-400">任意</span>
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">
+            店舗ロゴ画像（推奨: 正方形、500×500px 以上）
+            <br />
+            <span className="text-gray-300">
+              Business logo image (recommended: square, 500×500px or larger)
+            </span>
+          </p>
+        </div>
+
+        {logoPreview ? (
+          <div className="relative rounded-xl overflow-hidden border border-gray-200 max-w-xs">
+            <img
+              src={logoPreview}
+              alt="Logo preview"
+              className="w-full h-48 object-cover bg-gray-100"
+            />
+            <div className="absolute top-3 right-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={loading}
+                className="bg-white hover:bg-gray-100 text-gray-900 p-2 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                title="Change"
+              >
+                <ImagePlus className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleLogoRemove}
+                disabled={loading}
+                className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                title="Remove"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => logoInputRef.current?.click()}
+            disabled={loading}
+            className="w-full max-w-xs h-40 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors bg-white"
+          >
+            <ImagePlus className="h-8 w-8" />
+            <div className="text-center">
+              <p className="text-sm font-semibold">
+                クリックしてロゴをアップロード
+              </p>
+              <p className="text-xs mt-0.5">Click to upload logo</p>
+            </div>
+            <p className="text-xs text-gray-300">JPG, PNG, WebP</p>
+          </button>
+        )}
+        <input
+          ref={logoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleLogoPick}
+        />
+        {fieldErrors.logo && (
+          <p className="mt-2 text-xs text-red-500">{fieldErrors.logo}</p>
         )}
       </div>
 

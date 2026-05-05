@@ -6,6 +6,40 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Extract error message from API response
+ * Supports various error formats from Django REST Framework and custom responses
+ */
+export function extractErrorMessage(error: any, fallbackMessage: string = "An error occurred"): string {
+  // Handle axios/fetch error responses
+  if (error.response?.data) {
+    const data = error.response.data;
+    
+    // Check for common error message fields
+    if (typeof data.message === "string" && data.message.trim()) return data.message;
+    if (typeof data.detail === "string" && data.detail.trim()) return data.detail;
+    if (typeof data.error === "string" && data.error.trim()) return data.error;
+    
+    // Handle Django REST Framework style validation errors (field errors)
+    if (typeof data === "object") {
+      const errors = Object.values(data).filter(val => typeof val === "string" || Array.isArray(val));
+      if (errors.length > 0) {
+        const firstError = errors[0];
+        if (typeof firstError === "string") return firstError;
+        if (Array.isArray(firstError) && firstError.length > 0) return String(firstError[0]);
+      }
+    }
+  }
+  
+  // Handle direct error messages
+  if (error.message) return error.message;
+  
+  // Handle Error objects
+  if (error instanceof Error) return error.message;
+  
+  return fallbackMessage;
+}
+
+/**
  * Convert a "HH:MM" time string to a full ISO-8601 datetime string
  * required by the Django REST API (e.g. "2026-04-22T09:00:00+09:00").
  * Uses today's local date and the local timezone offset so the time

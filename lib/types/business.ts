@@ -20,6 +20,16 @@ export interface BusinessInfo {
   updated_at: string;
 }
 
+export interface QRCode {
+  id: number;
+  business: number;
+  qr_code_image: string;
+  qr_code_url: string;
+  url_encoded: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Business types
 export interface BusinessProfile {
   id: number;
@@ -39,11 +49,13 @@ export interface BusinessProfile {
   onboarding_step: number;
   hero_image?: string;
   hero_image_url?: string;
+  logo?: string;
   public_url?: string;
   created_at: string;
   updated_at: string;
   published_at?: string;
   info?: BusinessInfo | null;
+  qr_code?: QRCode | null;
 }
 
 export interface BusinessHours {

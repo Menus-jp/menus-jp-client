@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { isoToDatetimeLocalInput, timeToISODatetime } from "@/lib/utils";
+import { isoToDatetimeLocalInput, timeToISODatetime, extractErrorMessage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -201,9 +201,10 @@ function PhotoThumb({
           type="button"
           onClick={onRemove}
           disabled={disabled}
-          className="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-lg transition-colors disabled:opacity-50"
+          title="Delete"
         >
-          <Trash2 className="h-4 w-4 text-white" />
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
       )}
     </div>
@@ -823,8 +824,8 @@ export function Step4Form({
         } else {
           setItems([emptyItem()]);
         }
-      } catch {
-        setMenuError("既存のメニューを読み込めませんでした");
+      } catch (err: any) {
+        setMenuError(extractErrorMessage(err, "既存のメニューを読み込めませんでした"));
         setItems([emptyItem()]);
       } finally {
         setMenuLoading(false);
@@ -865,8 +866,8 @@ export function Step4Form({
           savedPhotosEn: items[itemIdx].savedPhotosEn.filter((p) => p.id !== photoId),
         });
       }
-    } catch {
-      setMenuError("写真の削除に失敗しました");
+    } catch (err: any) {
+      setMenuError(extractErrorMessage(err, "写真の削除に失敗しました"));
     }
   };
 

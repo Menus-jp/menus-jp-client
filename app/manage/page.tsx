@@ -26,6 +26,7 @@ import {
   MoreVertical,
   Trash2,
   X,
+  QrCode,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -44,6 +45,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { BusinessProfile } from "@/lib/types/business";
 import { NoticeAddDialog } from "@/components/business/notice-add-dialog";
+import { QRCodeDialog } from "@/components/business/qr-code-dialog";
 import { useBusinessNotices } from "@/lib/hooks/useBusinessNotices";
 
 type BusinessCategory =
@@ -207,6 +209,7 @@ const BusinessCard = React.memo(function BusinessCard({
 }) {
   const [noticeDialogOpen, setNoticeDialogOpen] = useState(false);
   const [editingNoticeId, setEditingNoticeId] = useState<number | null>(null);
+  const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
   const { 
     notices, 
     addNotice, 
@@ -429,6 +432,22 @@ const BusinessCard = React.memo(function BusinessCard({
             onSubmit={handleAddNotice}
             loading={noticeLoading}
             notice={editingNotice}
+          />
+          {business.is_published && business.qr_code && (
+            <Button
+              variant="outline"
+              onClick={() => setQrCodeDialogOpen(true)}
+              className="h-10 w-10 rounded-full border-[var(--secondary-color)] hover:border-gray-400 p-0 flex-shrink-0"
+              aria-label={`${business.business_name} のQRコードを表示`}
+            >
+              <QrCode className="h-6 w-6 text-[var(--primary-lighter)]" aria-hidden="true" />
+            </Button>
+          )}
+          <QRCodeDialog
+            open={qrCodeDialogOpen}
+            onOpenChange={setQrCodeDialogOpen}
+            qrCode={business.qr_code}
+            businessName={business.business_name}
           />
           {business.is_published && (
             <Button

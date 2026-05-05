@@ -133,6 +133,17 @@ const XIconSvg = () => (
   </svg>
 );
 
+const LanguagesIconSvg = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+    <path d="m5 8 6 6" />
+    <path d="m4 14 6-6 2-3" />
+    <path d="M2 5h12" />
+    <path d="M7 2h1" />
+    <path d="m22 22-5-10-5 10" />
+    <path d="M14 18h6" />
+  </svg>
+);
+
 const IOSLocationIconSvg = () => (
   <svg 
   viewBox="0 0 24 24" 
@@ -598,7 +609,7 @@ export default function PublicBusinessPage() {
     );
   }
 
-  const heroSrc = business.hero_image_url || business.hero_image || business.photos?.[0]?.image_url || null;
+  const heroSrc = business.logo
   const catMeta = CATEGORY_META[business.category] ?? { labelJp: "ビジネス", labelEn: "Business", tagJp: business.category, tagEn: business.category };
   const { isOpen, currentlyOpen, h: todayH } = getOpenStatus(business.hours ?? [], business.closed_days ?? []);
   const firstClosed = business.closed_days?.[0] ?? null;
@@ -650,9 +661,10 @@ export default function PublicBusinessPage() {
 
             <button
               onClick={() => setLang((l) => (l === "jp" ? "en" : "jp"))}
-              className="absolute right-4 top-4 z-20 rounded-full border border-white/15 bg-black/28 px-3 py-1 text-[11px] font-black tracking-[0.16em] text-white backdrop-blur-md"
+              className="absolute right-4 top-2 z-20 rounded-full border border-black/15 bg-black/28 p-2 text-yellow-500"
+              aria-label={lang === "jp" ? "Switch to English" : "日本語に切り替え"}
             >
-              {lang === "jp" ? "EN" : "JP"}
+              <LanguagesIconSvg />
             </button>
             <NoticeButton />
 
@@ -783,7 +795,7 @@ export default function PublicBusinessPage() {
 
                 <div className="min-h-[52px] px-4 py-3">
                   {bookingTab === "booking" && (
-                    <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 overflow-x-auto scrollbar-hide">
                       {bookLinks.map((link) => {
                         const cfg = BOOKING_CFG[link.platform] ?? BOOKING_CFG.custom;
                         const label = link.custom_name || (lang === "jp" ? cfg.jp.replace(/\n.*/, "") : cfg.en.replace(/\n.*/, ""));
@@ -804,7 +816,7 @@ export default function PublicBusinessPage() {
                     </div>
                   )}
                   {bookingTab === "order" && (
-                    <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 overflow-x-auto scrollbar-hide">
                       {orderLinks.map((link) => {
                         const cfg = ORDER_CFG[link.platform] ?? ORDER_CFG.custom;
                         const label = link.custom_name || (lang === "jp" ? cfg.jp : cfg.en);
@@ -826,7 +838,7 @@ export default function PublicBusinessPage() {
                   )}
 
                   {bookingTab === "coupon" && (
-                    <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="flex gap-2 overflow-x-auto scrollbar-hide">
                       {couponItems.map((item) => {
                         const label =
                           lang === "jp"
@@ -854,7 +866,7 @@ export default function PublicBusinessPage() {
                   )}
 
                   {bookingTab === "sns" && (
-                    <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 overflow-x-auto scrollbar-hide">
                       {socLinks.map((link) => (
                         <a
                           key={link.id}

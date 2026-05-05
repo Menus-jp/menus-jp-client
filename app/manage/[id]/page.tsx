@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { isoToDatetimeLocalInput, timeToISODatetime } from "@/lib/utils";
+import { isoToDatetimeLocalInput, timeToISODatetime, extractErrorMessage } from "@/lib/utils";
 import Link from "next/link";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { useBusinessApi } from "@/lib/hooks/useBusinessApi";
@@ -45,6 +45,7 @@ import {
   Image as ImageIcon,
   UtensilsCrossed,
   MoreVertical,
+  Maximize2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -325,9 +326,10 @@ function PhotoThumb({
           type="button"
           onClick={onRemove}
           disabled={disabled}
-          className="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-lg transition-colors disabled:opacity-50"
+          title="Delete"
         >
-          <Trash2 className="h-4 w-4 text-white" />
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
       )}
     </div>
@@ -892,6 +894,9 @@ function BusinessDetailContent() {
   const [closedDayRecords, setClosedDayRecords] = useState<ClosedDay[]>([]);
   const [photos, setPhotos] = useState<PhotoEntry[]>([]);
   const [heroImage, setHeroImage] = useState<string | null>(null);
+  const [logoImage, setLogoImage] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -900,6 +905,7 @@ function BusinessDetailContent() {
   const [heroUploading, setHeroUploading] = useState(false);
   const [heroError, setHeroError] = useState<string | null>(null);
   const heroInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [mapsUrl, setMapsUrl] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
@@ -999,6 +1005,12 @@ function BusinessDetailContent() {
         } else {
           const hero = allPhotos.find((p) => p.is_hero);
           setHeroImage(hero ? hero.url : null);
+        }
+
+        // Set logo image if available
+        if (data.logo) {
+          setLogoImage(data.logo);
+          setLogoPreview(data.logo);
         }
 
         // Load location coords
@@ -1180,13 +1192,24 @@ function BusinessDetailContent() {
         ]);
       }
     } catch (err: any) {
-      setPhotoError(
-        err.response?.data?.message || "写真のアップロードに失敗しました",
-      );
+      setPhotoError(extractErrorMessage(err, "写真のアップロードに失敗しました"));
     } finally {
       setPhotoUploading(false);
       if (photosInputRef.current) photosInputRef.current.value = "";
     }
+  };
+
+  const handleLogoPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+    e.target.value = "";
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
   };
 
   const handleHeroUpload = async (file: File) => {
@@ -1211,10 +1234,7 @@ function BusinessDetailContent() {
         ...prev,
       ]);
     } catch (err: any) {
-      setHeroError(
-        err.response?.data?.message ||
-          "ヒーロー画像のアップロードに失敗しました",
-      );
+      setHeroError(extractErrorMessage(err, "ヒーロー画像のアップロードに失敗しました"));
     } finally {
       setHeroUploading(false);
       if (heroInputRef.current) heroInputRef.current.value = "";
@@ -1576,9 +1596,7 @@ function BusinessDetailContent() {
       await Promise.all(ops);
       return true;
     } catch (err: any) {
-      setLinksError(
-        err?.response?.data?.message || "リンクの保存に失敗しました",
-      );
+      setLinksError(extractErrorMessage(err, "リンクの保存に失敗しました"));
       return false;
     }
   };
@@ -1605,7 +1623,7 @@ function BusinessDetailContent() {
       await apiClient.delete(`/business-photos/${photoId}/`);
       setPhotos((prev) => prev.filter((p) => p.id !== photoId));
     } catch (err: any) {
-      setPhotoError(err.response?.data?.message || "削除に失敗しました");
+      setPhotoError(extractErrorMessage(err, "削除に失敗しました"));
     }
   };
 
@@ -1653,6 +1671,7 @@ function BusinessDetailContent() {
         ...(longitude !== "" ? { longitude: parseFloat(longitude) } : {}),
         onboarding_step: nextStep,
         hero_image: undefined, // Always pass as File | null | undefined
+        logo: logoFile || undefined,
       });
       const savedInfo = await updateBusinessInfo(businessId, {
         description_jp: infoForm.description_jp.trim() || null,
@@ -2202,14 +2221,15 @@ function BusinessDetailContent() {
                       alt="Hero banner"
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                    <div className="absolute top-3 right-3 flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => heroInputRef.current?.click()}
                         disabled={heroUploading}
-                        className="px-3 py-1.5 bg-white/90 text-gray-900 text-sm font-semibold rounded-lg hover:bg-white transition-colors"
+                        className="p-2 bg-white/90 hover:bg-white text-gray-900 rounded-lg transition-colors disabled:opacity-50"
+                        title="Change"
                       >
-                        変更 / Change
+                        <Maximize2 className="h-4 w-4" />
                       </button>
                       {heroId && (
                         <button
@@ -2264,6 +2284,85 @@ function BusinessDetailContent() {
           </div>
 
           <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
+            <div className="flex items-center gap-1 mb-3">
+              <Label className="font-semibold text-gray-900">ロゴ / Logo</Label>
+              <span className="text-xs text-gray-400">(任意)</span>
+            </div>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleLogoPick}
+            />
+            {(() => {
+              const displayImage = logoPreview || logoImage;
+              if (displayImage) {
+                return (
+                  <div className="relative group rounded-xl overflow-hidden border border-gray-200" style={{ width: "200px", height: "200px" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={displayImage}
+                      alt="Logo"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-2 right-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={saving}
+                        className="p-2 bg-white/90 hover:bg-white text-gray-900 rounded-lg transition-colors disabled:opacity-50"
+                        title="Change"
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        disabled={saving}
+                        className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                        title="Remove"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              } else {
+                return (
+                  <div
+                    onClick={() =>
+                      !saving && logoInputRef.current?.click()
+                    }
+                    className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 py-10 transition-colors ${
+                      saving
+                        ? "border-gray-200 opacity-60 cursor-not-allowed"
+                        : "border-gray-300 hover:border-gray-400 cursor-pointer"
+                    }`}
+                  >
+                    {saving ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                    ) : (
+                      <>
+                        <ImagePlus className="h-8 w-8 text-gray-400" />
+                        <p className="text-sm font-medium text-gray-500">
+                          ロゴをアップロード
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Logo Image (Square recommended)
+                        </p>
+                      </>
+                    )}
+                  </div>
+                );
+              }
+            })()}
+            <p className="text-xs text-gray-500 mt-2">
+              推奨サイズ：500×500px以上（正方形）
+            </p>
+          </div>
+
+          <div className="p-4 border border-gray-300 rounded-lg bg-stone-50">
             <Label className="font-semibold text-gray-900 mb-3 block">
               写真 / Photos
             </Label>
@@ -2293,9 +2392,10 @@ function BusinessDetailContent() {
                   <button
                     type="button"
                     onClick={() => handleRemovePhoto(photo.id)}
-                    className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    className="absolute top-0.5 right-0.5 bg-red-500 hover:bg-red-600 text-white p-1 rounded transition-colors"
+                    title="Delete"
                   >
-                    <X className="h-4 w-4 text-white" />
+                    <X className="h-3 w-3" />
                   </button>
                 </div>
               ))}

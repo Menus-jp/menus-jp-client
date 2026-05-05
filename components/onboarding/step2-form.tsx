@@ -17,6 +17,7 @@ import {
 import { BusinessProfile } from "@/lib/types/business";
 import { Switch } from "@/components/ui/switch";
 import apiClient from "@/lib/api/auth";
+import { extractErrorMessage } from "@/lib/utils";
 
 interface Step2FormProps {
   business: BusinessProfile;
@@ -285,8 +286,7 @@ export function Step2Form({
       if (uploaded.length > 0) {
         setGalleryPhotos((prev) => [...prev, ...uploaded]);
       }
-      const msg =
-        err.response?.data?.message || "写真のアップロードに失敗しました";
+      const msg = extractErrorMessage(err, "写真のアップロードに失敗しました");
       setPhotoError(
         uploaded.length > 0 ? `${msg}（一部は保存されました）` : msg,
       );
@@ -304,7 +304,7 @@ export function Step2Form({
       await apiClient.delete(`/business-photos/${photoId}/`);
       setGalleryPhotos((prev) => prev.filter((p) => p.id !== photoId));
     } catch (err: any) {
-      setPhotoError(err.response?.data?.message || "削除に失敗しました");
+      setPhotoError(extractErrorMessage(err, "削除に失敗しました"));
     } finally {
       setDeletingPhotoId(null);
     }

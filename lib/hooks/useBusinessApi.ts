@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import apiClient from "@/lib/api/auth";
-import { timeToISODatetime } from "@/lib/utils";
+import { timeToISODatetime, extractErrorMessage } from "@/lib/utils";
 import {
   BusinessProfile,
   BusinessInfo,
@@ -24,16 +24,13 @@ export function useBusinessApi() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const extractError = (err: any, fallback: string) =>
-    err.response?.data?.message || err.response?.data?.detail || fallback;
-
   const listBusinesses = useCallback(async () => {
     try {
       setLoading(true);
       const res = await apiClient.get("/businesses/");
       return res.data;
     } catch (err: any) {
-      setError(extractError(err, "Failed to load businesses"));
+      setError(extractErrorMessage(err, "Failed to load businesses"));
       throw err;
     } finally {
       setLoading(false);
@@ -46,7 +43,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/businesses/${id}/`);
       return res.data as BusinessDetail;
     } catch (err: any) {
-      setError(extractError(err, "Failed to load business"));
+      setError(extractErrorMessage(err, "Failed to load business"));
       throw err;
     } finally {
       setLoading(false);
@@ -61,7 +58,7 @@ export function useBusinessApi() {
       });
       return res.data as BusinessInfo[] | BusinessInfo;
     } catch (err: any) {
-      setError(extractError(err, "Failed to load business info"));
+      setError(extractErrorMessage(err, "Failed to load business info"));
       throw err;
     } finally {
       setLoading(false);
@@ -76,7 +73,7 @@ export function useBusinessApi() {
       });
       return res.data as BusinessInfo;
     } catch (err: any) {
-      setError(extractError(err, "Failed to load business info"));
+      setError(extractErrorMessage(err, "Failed to load business info"));
       throw err;
     } finally {
       setLoading(false);
@@ -89,7 +86,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/business-info/${infoId}/`);
       return res.data as BusinessInfo;
     } catch (err: any) {
-      setError(extractError(err, "Failed to load business info"));
+      setError(extractErrorMessage(err, "Failed to load business info"));
       throw err;
     } finally {
       setLoading(false);
@@ -121,7 +118,7 @@ export function useBusinessApi() {
         });
         return res.data as BusinessProfile;
       } catch (err: any) {
-        setError(extractError(err, "Failed to create business"));
+        setError(extractErrorMessage(err, "Failed to create business"));
         throw err;
       } finally {
         setLoading(false);
@@ -130,7 +127,7 @@ export function useBusinessApi() {
     [],
   );
 
-  type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image"> & { hero_image?: File | null };
+  type BusinessPatch = Omit<Partial<BusinessProfile>, "hero_image" | "logo"> & { hero_image?: File | null; logo?: File | null };
   type BusinessInfoPatch = {
     description_jp?: string | null;
     description_en?: string | null;
@@ -146,15 +143,18 @@ export function useBusinessApi() {
         if (data.category) fd.append("category", data.category);
         if (data.address) fd.append("address", data.address);
         if (data.phone_number) fd.append("phone_number", data.phone_number);
+        if (data.website) fd.append("website", data.website);
+        if (data.maps_url) fd.append("maps_url", data.maps_url);
         if (data.latitude != null) fd.append("latitude", String(data.latitude));
         if (data.longitude != null) fd.append("longitude", String(data.longitude));
         if (data.hero_image) fd.append("hero_image", data.hero_image);
+        if (data.logo) fd.append("logo", data.logo);
         const res = await apiClient.patch(`/businesses/${id}/`, fd, {
           headers: { "Content-Type": undefined },
         });
         return res.data as BusinessProfile;
       } catch (err: any) {
-        setError(extractError(err, "Failed to update business"));
+        setError(extractErrorMessage(err, "Failed to update business"));
         throw err;
       } finally {
         setLoading(false);
@@ -172,7 +172,7 @@ export function useBusinessApi() {
         });
         return res.data as BusinessInfo;
       } catch (err: any) {
-        setError(extractError(err, "Failed to update business info"));
+        setError(extractErrorMessage(err, "Failed to update business info"));
         throw err;
       } finally {
         setLoading(false);
@@ -188,7 +188,7 @@ export function useBusinessApi() {
         const res = await apiClient.patch(`/business-info/${infoId}/`, data);
         return res.data as BusinessInfo;
       } catch (err: any) {
-        setError(extractError(err, "Failed to update business info"));
+        setError(extractErrorMessage(err, "Failed to update business info"));
         throw err;
       } finally {
         setLoading(false);
@@ -203,7 +203,7 @@ export function useBusinessApi() {
       const res = await apiClient.post(`/businesses/${id}/publish/`, {});
       return res.data;
     } catch (err: any) {
-      setError(extractError(err, "Failed to publish business"));
+      setError(extractErrorMessage(err, "Failed to publish business"));
       throw err;
     } finally {
       setLoading(false);
@@ -216,7 +216,7 @@ export function useBusinessApi() {
       const res = await apiClient.post(`/businesses/${id}/unpublish/`, {});
       return res.data;
     } catch (err: any) {
-      setError(extractError(err, "Failed to unpublish business"));
+      setError(extractErrorMessage(err, "Failed to unpublish business"));
       throw err;
     } finally {
       setLoading(false);
@@ -228,7 +228,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/businesses/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, "Failed to delete business"));
+      setError(extractErrorMessage(err, "Failed to delete business"));
       throw err;
     } finally {
       setLoading(false);
@@ -244,7 +244,7 @@ export function useBusinessApi() {
       );
       return (res.data.results ?? res.data) as BusinessHours[];
     } catch (err: any) {
-      setError(extractError(err, "Failed to load hours"));
+      setError(extractErrorMessage(err, "Failed to load hours"));
       throw err;
     } finally {
       setLoading(false);
@@ -262,7 +262,7 @@ export function useBusinessApi() {
         });
         return res.data;
       } catch (err: any) {
-        setError(extractError(err, "Failed to save hours"));
+        setError(extractErrorMessage(err, "Failed to save hours"));
         throw err;
       } finally {
         setLoading(false);
@@ -285,7 +285,7 @@ export function useBusinessApi() {
         });
         return res.data;
       } catch (err: any) {
-        setError(extractError(err, "Failed to update hours"));
+        setError(extractErrorMessage(err, "Failed to update hours"));
         throw err;
       } finally {
         setLoading(false);
@@ -299,7 +299,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/business-hours/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, "Failed to delete hours"));
+      setError(extractErrorMessage(err, "Failed to delete hours"));
       throw err;
     } finally {
       setLoading(false);
@@ -313,7 +313,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/closed-days/?business=${businessId}`);
       return (res.data.results ?? res.data) as ClosedDay[];
     } catch (err: any) {
-      setError(extractError(err, "Failed to load closed days"));
+      setError(extractErrorMessage(err, "Failed to load closed days"));
       throw err;
     } finally {
       setLoading(false);
@@ -333,7 +333,7 @@ export function useBusinessApi() {
         });
         return res.data;
       } catch (err: any) {
-        setError(extractError(err, "Failed to create closed days"));
+        setError(extractErrorMessage(err, "Failed to create closed days"));
         throw err;
       } finally {
         setLoading(false);
@@ -349,7 +349,7 @@ export function useBusinessApi() {
     } catch (err: any) {
       // 404 means the record is already gone — treat as success
       if (err?.response?.status === 404) return;
-      setError(extractError(err, "Failed to delete closed day"));
+      setError(extractErrorMessage(err, "Failed to delete closed day"));
       throw err;
     } finally {
       setLoading(false);
@@ -363,7 +363,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/menu-items/?business=${businessId}`);
       return (res.data.results ?? res.data) as MenuItem[];
     } catch (err: any) {
-      setError(extractError(err, "Failed to load menu items"));
+      setError(extractErrorMessage(err, "Failed to load menu items"));
       throw err;
     } finally {
       setLoading(false);
@@ -383,7 +383,7 @@ export function useBusinessApi() {
       });
       return res.data as MenuItem;
     } catch (err: any) {
-      setError(extractError(err, "Failed to create menu item"));
+      setError(extractErrorMessage(err, "Failed to create menu item"));
       throw err;
     } finally {
       setLoading(false);
@@ -420,7 +420,7 @@ export function useBusinessApi() {
         });
         return res.data as MenuItem;
       } catch (err: any) {
-        setError(extractError(err, "Failed to update menu item"));
+        setError(extractErrorMessage(err, "Failed to update menu item"));
         throw err;
       } finally {
         setLoading(false);
@@ -434,7 +434,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/menu-items/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, "Failed to delete menu item"));
+      setError(extractErrorMessage(err, "Failed to delete menu item"));
       throw err;
     } finally {
       setLoading(false);
@@ -450,7 +450,7 @@ export function useBusinessApi() {
       });
       return res.data as MenuItemPhoto;
     } catch (err: any) {
-      setError(extractError(err, "Failed to upload menu item photo"));
+      setError(extractErrorMessage(err, "Failed to upload menu item photo"));
       throw err;
     } finally {
       setLoading(false);
@@ -462,7 +462,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/menu-item-photos/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, "Failed to delete menu item photo"));
+      setError(extractErrorMessage(err, "Failed to delete menu item photo"));
       throw err;
     } finally {
       setLoading(false);
@@ -489,7 +489,7 @@ export function useBusinessApi() {
         });
         return res.data;
       } catch (err: any) {
-        setError(extractError(err, "Failed to create menu item hours"));
+        setError(extractErrorMessage(err, "Failed to create menu item hours"));
         throw err;
       } finally {
         setLoading(false);
@@ -507,7 +507,7 @@ export function useBusinessApi() {
         });
         return res.data;
       } catch (err: any) {
-        setError(extractError(err, "Failed to update menu item hours"));
+        setError(extractErrorMessage(err, "Failed to update menu item hours"));
         throw err;
       } finally {
         setLoading(false);
@@ -521,7 +521,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/menu-item-hours/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, "Failed to delete menu item hours"));
+      setError(extractErrorMessage(err, "Failed to delete menu item hours"));
       throw err;
     } finally {
       setLoading(false);
@@ -535,7 +535,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/service-items/?business=${businessId}`);
       return (res.data.results ?? res.data) as ServiceItem[];
     } catch (err: any) {
-      setError(extractError(err, "Failed to load service items"));
+      setError(extractErrorMessage(err, "Failed to load service items"));
       throw err;
     } finally {
       setLoading(false);
@@ -550,7 +550,7 @@ export function useBusinessApi() {
       });
       return res.data as ServiceItem;
     } catch (err: any) {
-      setError(extractError(err, "Failed to create service item"));
+      setError(extractErrorMessage(err, "Failed to create service item"));
       throw err;
     } finally {
       setLoading(false);
@@ -564,7 +564,7 @@ export function useBusinessApi() {
         const res = await apiClient.patch(`/service-items/${id}/`, data);
         return res.data as ServiceItem;
       } catch (err: any) {
-        setError(extractError(err, "Failed to update service item"));
+        setError(extractErrorMessage(err, "Failed to update service item"));
         throw err;
       } finally {
         setLoading(false);
@@ -578,7 +578,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/service-items/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, "Failed to delete service item"));
+      setError(extractErrorMessage(err, "Failed to delete service item"));
       throw err;
     } finally {
       setLoading(false);
@@ -592,7 +592,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/booking-links/?business=${businessId}`);
       return (res.data.results ?? res.data) as BookingLink[];
     } catch (err: any) {
-      setError(extractError(err, "Failed to load booking links"));
+      setError(extractErrorMessage(err, "Failed to load booking links"));
       throw err;
     } finally {
       setLoading(false);
@@ -606,7 +606,7 @@ export function useBusinessApi() {
         const res = await apiClient.post("/booking-links/", data);
         return res.data as BookingLink;
       } catch (err: any) {
-        setError(extractError(err, "Failed to create booking link"));
+        setError(extractErrorMessage(err, "Failed to create booking link"));
         throw err;
       } finally {
         setLoading(false);
@@ -622,7 +622,7 @@ export function useBusinessApi() {
         const res = await apiClient.patch(`/booking-links/${id}/`, data);
         return res.data as BookingLink;
       } catch (err: any) {
-        setError(extractError(err, "Failed to update booking link"));
+        setError(extractErrorMessage(err, "Failed to update booking link"));
         throw err;
       } finally {
         setLoading(false);
@@ -636,7 +636,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/booking-links/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, "Failed to delete booking link"));
+      setError(extractErrorMessage(err, "Failed to delete booking link"));
       throw err;
     } finally {
       setLoading(false);
@@ -650,7 +650,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/social-links/?business=${businessId}`);
       return (res.data.results ?? res.data) as SocialLink[];
     } catch (err: any) {
-      setError(extractError(err, "Failed to load social links"));
+      setError(extractErrorMessage(err, "Failed to load social links"));
       throw err;
     } finally {
       setLoading(false);
@@ -664,7 +664,7 @@ export function useBusinessApi() {
         const res = await apiClient.post("/social-links/", data);
         return res.data as SocialLink;
       } catch (err: any) {
-        setError(extractError(err, "Failed to create social link"));
+        setError(extractErrorMessage(err, "Failed to create social link"));
         throw err;
       } finally {
         setLoading(false);
@@ -680,7 +680,7 @@ export function useBusinessApi() {
         const res = await apiClient.patch(`/social-links/${id}/`, data);
         return res.data as SocialLink;
       } catch (err: any) {
-        setError(extractError(err, "Failed to update social link"));
+        setError(extractErrorMessage(err, "Failed to update social link"));
         throw err;
       } finally {
         setLoading(false);
@@ -694,7 +694,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/social-links/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, "Failed to delete social link"));
+      setError(extractErrorMessage(err, "Failed to delete social link"));
       throw err;
     } finally {
       setLoading(false);
@@ -710,7 +710,7 @@ export function useBusinessApi() {
       );
       return (res.data.results ?? res.data) as BusinessPhoto[];
     } catch (err: any) {
-      setError(extractError(err, "Failed to load photos"));
+      setError(extractErrorMessage(err, "Failed to load photos"));
       throw err;
     } finally {
       setLoading(false);
@@ -725,7 +725,7 @@ export function useBusinessApi() {
       });
       return res.data as BusinessPhoto;
     } catch (err: any) {
-      setError(extractError(err, "Failed to upload photo"));
+      setError(extractErrorMessage(err, "Failed to upload photo"));
       throw err;
     } finally {
       setLoading(false);
@@ -737,7 +737,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/business-photos/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, "Failed to delete photo"));
+      setError(extractErrorMessage(err, "Failed to delete photo"));
       throw err;
     } finally {
       setLoading(false);
@@ -751,7 +751,7 @@ export function useBusinessApi() {
       const res = await apiClient.get(`/order-links/?business=${businessId}`);
       return (res.data.results ?? res.data) as import("@/lib/types/business").OrderLink[];
     } catch (err: any) {
-      setError(extractError(err, "Failed to load order links"));
+      setError(extractErrorMessage(err, "Failed to load order links"));
       throw err;
     } finally {
       setLoading(false);
@@ -765,7 +765,7 @@ export function useBusinessApi() {
         const res = await apiClient.post("/order-links/", data);
         return res.data as import("@/lib/types/business").OrderLink;
       } catch (err: any) {
-        setError(extractError(err, "Failed to create order link"));
+        setError(extractErrorMessage(err, "Failed to create order link"));
         throw err;
       } finally {
         setLoading(false);
@@ -781,7 +781,7 @@ export function useBusinessApi() {
         const res = await apiClient.patch(`/order-links/${id}/`, data);
         return res.data as import("@/lib/types/business").OrderLink;
       } catch (err: any) {
-        setError(extractError(err, "Failed to update order link"));
+        setError(extractErrorMessage(err, "Failed to update order link"));
         throw err;
       } finally {
         setLoading(false);
@@ -795,7 +795,7 @@ export function useBusinessApi() {
       setLoading(true);
       await apiClient.delete(`/order-links/${id}/`);
     } catch (err: any) {
-      setError(extractError(err, "Failed to delete order link"));
+      setError(extractErrorMessage(err, "Failed to delete order link"));
       throw err;
     } finally {
       setLoading(false);

@@ -94,28 +94,39 @@ export default function BusinessPhotoCarousel({
       onMouseLeave={() => setPaused(false)}
     >
       {photos.length > 0 ? (
-        photos.map((photo, i) => {
-          const isActive = i === current;
-          const isPrev = i === prev;
-          if (!isActive && !isPrev) return null;
-          return (
-            <div
-              key={photo.id}
-              className={[
-                "absolute inset-0 transition-all duration-[420ms] ease-[cubic-bezier(0.77,0,0.18,1)]",
-                isActive && animating ? slideIn : "",
-                isActive && !animating ? "translate-x-0 opacity-100" : "",
-                isPrev ? slideOut : "",
-              ].join(" ")}
-            >
-              <img
-                src={photo.image}
-                alt={photo.alt ?? `${businessName} photo ${i + 1}`}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            </div>
-          );
-        })
+        <>
+          {/* Fallback: show current photo as background to prevent black screen */}
+          <div className="absolute inset-0 z-0">
+            <img
+              src={photos[current]?.image}
+              alt={photos[current]?.alt ?? `${businessName} photo`}
+              className="h-full w-full object-cover"
+            />
+          </div>
+          {/* Animated carousel images */}
+          {photos.map((photo, i) => {
+            const isActive = i === current;
+            const isPrev = i === prev;
+            if (!isActive && !isPrev) return null;
+            return (
+              <div
+                key={photo.id}
+                className={[
+                  "absolute inset-0 z-10 transition-all duration-[420ms] ease-[cubic-bezier(0.77,0,0.18,1)]",
+                  isActive && animating ? slideIn : "",
+                  isActive && !animating ? "translate-x-0 opacity-100" : "",
+                  isPrev ? slideOut : "",
+                ].join(" ")}
+              >
+                <img
+                  src={photo.image}
+                  alt={photo.alt ?? `${businessName} photo ${i + 1}`}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              </div>
+            );
+          })}
+        </>
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-800">
           <span className="text-4xl font-black tracking-tight text-white/20">
